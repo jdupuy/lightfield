@@ -297,8 +297,7 @@ int main(int argc, char** argv) {
 	// init glew
 	glewExperimental = GL_TRUE; // segfault on GenVertexArrays on Nvidia otherwise
 	GLenum err = glewInit();
-	if(GLEW_OK != err)
-	{
+	if(GLEW_OK != err) {
 		std::stringstream ss;
 		ss << err;
 		std::cerr << "glewInit() gave error " << ss.str() << std::endl;
@@ -319,14 +318,12 @@ int main(int argc, char** argv) {
 	glutMouseWheelFunc(&on_mouse_wheel);
 
 	// run
-	try
-	{
+	try {
 		// run demo
 		on_init();
 		glutMainLoop();
 	}
-	catch(std::exception& e)
-	{
+	catch(std::exception& e) {
 		std::cerr << "Fatal exception: " << e.what() << std::endl;
 		return 1;
 	}

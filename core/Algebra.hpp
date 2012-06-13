@@ -11,7 +11,6 @@
 //          - Matrix4x4: 4x4 square, column major matrix
 //          Notes:
 //          - angles must be provided in radians
-//          - user is encouraged to use bracket operators to access members
 //
 ////////////////////////////////////////////////////////////////////////////////
 
