@@ -207,9 +207,7 @@ static GLvoid _gl_debug_message_callback( GLenum source,
 ////////////////////////////////////////////////////////////////////////////////
 // Next power of two
 bool is_power_of_two(GLuint number) {
-	while (((x & 1) == 0) && x > 1) /* While x is even and > 1 */
-		x >>= 1;
-	return (x == 1);
+	return ((number != 0) && !(number & (number - 1)));
 }
 
 
