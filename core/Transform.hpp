@@ -38,6 +38,9 @@ public:
 	                     const Vector3& targetPosition,
 	                     const Vector3& unitUp);
 
+	// Constructors
+	Affine();
+
 	// Comparison operators
 	bool operator==(const Affine& affine) const;
 	bool operator!=(const Affine& affine) const;

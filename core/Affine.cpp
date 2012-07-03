@@ -9,6 +9,7 @@ const Affine Affine::IDENTITY(Matrix3x3::Diagonal(1,1,1),
                               1.0f);
 
 
+
 ////////////////////////////////////////////////////////////////////////////////
 // Factories
 Affine Affine::Translation(const Vector3& translation)
@@ -16,6 +17,17 @@ Affine Affine::Translation(const Vector3& translation)
 	return Affine(Matrix3x3::Diagonal(1,1,1),
 	               translation,
 	               1.0f);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Constructor
+Affine::Affine():
+	mUnitAxis(Matrix3x3::Diagonal(1,1,1)),
+	mPosition(Vector3(0,0,0)),
+	mScale(1.f),
+	mIsRS(true)
+{
 }
 
 
@@ -46,7 +58,7 @@ bool Affine::operator!=(const Affine& affine) const
 	        ||   mScale  != affine.mScale);
 }
 
-#include <iostream>
+
 ////////////////////////////////////////////////////////////////////////////////
 // Translate
 void Affine::TranslateWorld(const Vector3& direction)
