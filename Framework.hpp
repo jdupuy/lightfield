@@ -31,10 +31,10 @@ namespace fw
 
 
 	// Build GLSL program
-	GLvoid build_glsl_program( GLuint program, 
-	                           const std::string& srcfile,
-	                           const std::string& options,
-	                           GLboolean link ) throw(FWException);
+	GLvoid build_glsl_program(GLuint program, 
+	                          const std::string& srcfile,
+	                          const std::string& options,
+	                          GLboolean link) throw(FWException);
 
 
 	// Check OpenGL errors (uses ARB_debug_output if available)
@@ -45,10 +45,10 @@ namespace fw
 	// Save a portion of the OpenGL front buffer (= take a screenshot).
 	// File will be a TGA in BGR format, uncompressed.
 	// The OpenGL state is restored the way it was before this function call.
-	GLvoid save_gl_front_buffer( GLint x,
-	                             GLint y,
-	                             GLsizei width,
-	                             GLsizei height) throw(FWException);
+	GLvoid save_gl_front_buffer(GLint x,
+	                            GLint y,
+	                            GLsizei width,
+	                            GLsizei height) throw(FWException);
 
 
 	// Pack four floats in an unsigned integer
@@ -59,6 +59,7 @@ namespace fw
 	                                  GLfloat z,
 	                                  GLfloat w);
 	GLuint pack_4fv_to_uint_10_10_10_2(const GLfloat *v);
+
 
 	// Pack four floats in a signed integer
 	// Floats are clamped in range [-1,1]
@@ -73,6 +74,25 @@ namespace fw
 	// Half to float conversion
 	GLhalf float_to_half(GLfloat f);
 	GLfloat half_to_float(GLhalf h);
+
+
+	// Indirect drawing command : DrawArraysIndirectCommand
+	typedef struct {
+		GLuint count;
+		GLuint primCount;
+		GLuint first;
+		GLuint baseInstance;
+	} DrawArraysIndirectCommand;
+
+
+	// Indirect drawing command : DrawElementsIndirectCommand
+	typedef struct {
+		GLuint count;
+		GLuint primCount;
+		GLuint firstIndex;
+		GLint baseVertex;
+		GLuint baseInstance;
+	} DrawElementsIndirectCommand;
 
 
 	// Basic timer class
