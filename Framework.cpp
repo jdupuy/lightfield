@@ -193,8 +193,7 @@ static GLvoid _gl_debug_message_callback( GLenum source,
                                           GLenum severity,
                                           GLsizei length,
                                           const GLchar* message,
-                                          GLvoid* userParam )
-{
+                                          GLvoid* userParam ) {
 	std::cerr << "[DEBUG_OUTPUT] " << message << std::endl;
 	//throw _GLErrorException(message);
 }
@@ -207,8 +206,16 @@ static GLvoid _gl_debug_message_callback( GLenum source,
 
 ////////////////////////////////////////////////////////////////////////////////
 // Next power of two
-GLuint next_power_of_two(GLuint number)
-{
+bool is_power_of_two(GLuint number) {
+	while (((x & 1) == 0) && x > 1) /* While x is even and > 1 */
+		x >>= 1;
+	return (x == 1);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Next power of two
+GLuint next_power_of_two(GLuint number) {
 	if (number == 0)
 		return 1;
 	--number;
@@ -223,8 +230,7 @@ GLuint next_power_of_two(GLuint number)
 GLvoid build_glsl_program( GLuint program, 
                            const std::string& srcfile,
                            const std::string& options,
-                           GLboolean link ) throw(FWException)
-{
+                           GLboolean link ) throw(FWException) {
 	// open source file
 	std::ifstream file(srcfile.c_str());
 	if(file.fail())

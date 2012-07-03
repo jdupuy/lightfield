@@ -26,6 +26,10 @@ namespace fw
 	};
 
 
+	// Check if power of two
+	bool is_power_of_two(GLuint number);
+
+
 	// Get next power of two
 	GLuint next_power_of_two(GLuint number);
 
