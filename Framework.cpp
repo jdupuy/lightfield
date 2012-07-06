@@ -21,65 +21,51 @@ namespace fw
 // Exceptions
 //
 ////////////////////////////////////////////////////////////////////////////////
-class _ShaderCompilationFailedException : public FWException
-{
+class _ShaderCompilationFailedException : public FWException {
 public:
-	_ShaderCompilationFailedException(const std::string& log)
-	{
+	_ShaderCompilationFailedException(const std::string& log) {
 		mMessage = log;
 	}
 };
 
-class _ProgramLinkFailException : public FWException
-{
+class _ProgramLinkFailException : public FWException {
 public:
-	_ProgramLinkFailException(const std::string& file, const std::string& log)
-	{
+	_ProgramLinkFailException(const std::string& file, const std::string& log) {
 		mMessage = "GLSL link error in " + file + ":\n" + log;
 	}
 };
 
-class _ProgramBuildFailException : public FWException
-{
+class _ProgramBuildFailException : public FWException {
 public:
-	_ProgramBuildFailException(const std::string& file, const std::string& log)
-	{
+	_ProgramBuildFailException(const std::string& file, const std::string& log) {
 		mMessage = "GLSL build error in " + file + ":\n" + log;
 	}
 };
 
-class _FileNotFoundException : public FWException
-{
+class _FileNotFoundException : public FWException {
 public:
-	_FileNotFoundException(const std::string& file)
-	{
+	_FileNotFoundException(const std::string& file) {
 		mMessage = "File " + file + " not found.";
 	}
 };
 
-class _ProgramInvalidFirstLineException : public FWException
-{
+class _ProgramInvalidFirstLineException : public FWException {
 public:
-	_ProgramInvalidFirstLineException(const std::string& file)
-	{
+	_ProgramInvalidFirstLineException(const std::string& file) {
 		mMessage = "First line must be GLSL version specification (in "+file+").";
 	}
 };
 
-class _GLErrorException : public FWException
-{
+class _GLErrorException : public FWException {
 public:
-	_GLErrorException(const std::string& log)
-	{
+	_GLErrorException(const std::string& log) {
 		mMessage = log;
 	}
 };
 
-class _InvalidViewportDimensionsException : public FWException
-{
+class _InvalidViewportDimensionsException : public FWException {
 public:
-	_InvalidViewportDimensionsException()
-	{
+	_InvalidViewportDimensionsException() {
 		mMessage = "Invalid viewport dimensions.";
 	}
 };
@@ -92,16 +78,14 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////
 // extract uint16 from two uint8
-static GLushort _unpack_uint16(GLubyte msb, GLubyte lsb)
-{
+static GLushort _unpack_uint16(GLubyte msb, GLubyte lsb) {
 	return (static_cast<GLushort>(lsb) | static_cast<GLushort>(msb) << 8);
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 // clamp float in range [min,max]
-static float _clamp_float(float x, float min, float max)
-{
+static float _clamp_float(float x, float min, float max) {
 	return std::min( max, std::max(min, x) );
 }
 
@@ -113,8 +97,7 @@ static float _clamp_float(float x, float min, float max)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Get time
-static GLdouble _get_ticks()
-{
+static GLdouble _get_ticks() {
 #ifdef _WIN32
 	__int64 time;
 	__int64 cpuFrequency;
@@ -138,8 +121,7 @@ static GLdouble _get_ticks()
 // Attach shader
 static void _attach_shader( GLuint program,
                             GLenum shaderType,
-                            const GLchar* stringsrc) throw(FWException)
-{
+                            const GLchar* stringsrc) throw(FWException) {
 	const GLchar** string = &stringsrc;
 	GLuint shader = glCreateShader(shaderType);
 	glShaderSource(shader, 1, string, NULL);
@@ -163,10 +145,8 @@ static void _attach_shader( GLuint program,
 
 ////////////////////////////////////////////////////////////////////////////////
 // Convert GL error code to string
-static const std::string _gl_error_to_string(GLenum error)
-{
-	switch(error)
-	{
+static const std::string _gl_error_to_string(GLenum error) {
+	switch(error) {
 	case GL_NO_ERROR:
 		return "GL_NO_ERROR";
 	case GL_INVALID_ENUM:
