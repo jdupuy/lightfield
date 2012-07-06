@@ -79,6 +79,7 @@ namespace fw
 	GLfloat half_to_float(GLhalf h);
 
 	// Upload a TGA in a 2D texture
+	// immutable should be set to GL_FALSE on OpenGL3.3 (and older) hardware
 	void tex_tga_image2D(const std::string& filename,
 	                     GLuint texture,
 	                     GLboolean genMipmaps,
