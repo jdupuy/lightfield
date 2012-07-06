@@ -16,8 +16,7 @@
 namespace fw 
 {
 	// Framework exception
-	class FWException : public std::exception
-	{
+	class FWException : public std::exception {
 	public:
 		virtual ~FWException()   throw()   {}
 		const char* what() const throw()   {return mMessage.c_str();}
@@ -79,6 +78,11 @@ namespace fw
 	GLhalf float_to_half(GLfloat f);
 	GLfloat half_to_float(GLhalf h);
 
+	// Upload a TGA in a 2D texture
+	void tex_tga_image2D(const std::string& filename,
+	                     GLuint texture,
+	                     GLboolean genMipmaps,
+	                     GLboolean immutable) throw(FWException);
 
 	// Indirect drawing command : DrawArraysIndirectCommand
 	typedef struct {
@@ -100,8 +104,7 @@ namespace fw
 
 
 	// Basic timer class
-	class Timer
-	{
+	class Timer {
 	public:
 		// Constructors / Destructor
 		Timer();
@@ -122,8 +125,7 @@ namespace fw
 
 
 	// Tga image loader
-	class Tga
-	{
+	class Tga {
 	public:
 		// Constants
 		enum
@@ -172,6 +174,7 @@ namespace fw
 		GLushort mHeight;
 		GLint    mPixelFormat;
 	};
+
 
 } // namespace fw
 

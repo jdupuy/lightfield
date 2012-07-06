@@ -255,54 +255,45 @@ GLvoid build_glsl_program( GLuint program,
 	while(getline(file, line))
 		source += line + '\n';
 
-	try
-	{
+	try {
 		// find different stages and build shaders
-		if(source.find("_VERTEX_") != std::string::npos)
-		{
+		if(source.find("_VERTEX_") != std::string::npos) {
 			std::string vsource = source;
 			vsource.insert(posbu, "#define _VERTEX_\n");
 			_attach_shader(program, GL_VERTEX_SHADER, vsource.data());
 		}
-		if(source.find("_TESS_CONTROL_") != std::string::npos)
-		{
+		if(source.find("_TESS_CONTROL_") != std::string::npos) {
 			std::string csource = source;
 			csource.insert(posbu, "#define _TESS_CONTROL_\n");
 			_attach_shader(program, GL_TESS_CONTROL_SHADER, csource.data());
 		}
-		if(source.find("_TESS_EVALUATION_") != std::string::npos)
-		{
+		if(source.find("_TESS_EVALUATION_") != std::string::npos) {
 			std::string esource = source;
 			esource.insert(posbu, "#define _TESS_EVALUATION_\n");
 			_attach_shader(program, GL_TESS_EVALUATION_SHADER, esource.data());
 		}
-		if(source.find("_GEOMETRY_") != std::string::npos)
-		{
+		if(source.find("_GEOMETRY_") != std::string::npos) {
 			std::string gsource = source;
 			gsource.insert(posbu, "#define _GEOMETRY_\n");
 			_attach_shader(program, GL_GEOMETRY_SHADER, gsource.data());
 		}
-		if(source.find("_FRAGMENT_") != std::string::npos)
-		{
+		if(source.find("_FRAGMENT_") != std::string::npos) {
 			std::string fsource = source;
 			fsource.insert(posbu, "#define _FRAGMENT_\n");
 			_attach_shader(program, GL_FRAGMENT_SHADER, fsource.data());
 		}
 	}
-	catch(FWException& e)
-	{
+	catch(FWException& e) {
 		throw _ProgramBuildFailException(srcfile, e.what());
 	}
 
 	// Link program if asked
-	if(GL_TRUE == link)
-	{
+	if(GL_TRUE == link) {
 		glLinkProgram(program);
 		// check link
 		GLint linkStatus = 0;
 		glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
-		if(GL_FALSE == linkStatus)
-		{
+		if(GL_FALSE == linkStatus) {
 			GLchar logContent[512];
 			glGetProgramInfoLog(program, 512, NULL, logContent);
 			throw _ProgramLinkFailException(srcfile, logContent);
@@ -313,19 +304,16 @@ GLvoid build_glsl_program( GLuint program,
 
 ////////////////////////////////////////////////////////////////////////////////
 // Check OpenGL error
-GLvoid check_gl_error() throw (FWException)
-{
+GLvoid check_gl_error() throw (FWException) {
 	static bool isArbDebugOutputConfigured = false;
-	if(GLEW_ARB_debug_output && !isArbDebugOutputConfigured)
-	{
+	if(GLEW_ARB_debug_output && !isArbDebugOutputConfigured) {
 		glDebugMessageCallbackARB(
 			reinterpret_cast<GLDEBUGPROCARB>(&_gl_debug_message_callback),
 			NULL );
 		isArbDebugOutputConfigured = true;
 	}
 	GLenum error = glGetError();
-	if(GL_NO_ERROR != error)
-	{
+	if(GL_NO_ERROR != error) {
 		throw _GLErrorException(_gl_error_to_string(error));
 	}
 }
@@ -336,8 +324,7 @@ GLvoid check_gl_error() throw (FWException)
 GLvoid save_gl_front_buffer( GLint x,
 	                         GLint y,
 	                         GLsizei width,
-	                         GLsizei height) throw(FWException)
-{
+	                         GLsizei height) throw(FWException) {
 	static GLuint sShotCounter = 1;
 	GLubyte *tgaPixels = NULL;
 	GLint tgaWidth, tgaHeight;
@@ -399,8 +386,7 @@ GLvoid save_gl_front_buffer( GLint x,
 		throw _FileNotFoundException(ss.str().c_str());
 
 	// create header
-	GLchar tgaHeader[18]=
-	{
+	GLchar tgaHeader[18]= {
 		0,                                     // image identification field
 		0,                                     // colormap type
 		2,                                     // image type code
@@ -444,8 +430,7 @@ GLvoid save_gl_front_buffer( GLint x,
 GLuint pack_4f_to_uint_10_10_10_2(GLfloat x,
                                   GLfloat y,
                                   GLfloat z,
-                                  GLfloat w)
-{
+                                  GLfloat w) {
 	// clamp the values
 	x = _clamp_float(x, 0.0f, 1.0f)*1023.0f;
 	y = _clamp_float(y, 0.0f, 1.0f)*1023.0f;
@@ -458,8 +443,7 @@ GLuint pack_4f_to_uint_10_10_10_2(GLfloat x,
 	         | (GLuint(w)   << 29    & 0xC0000000u) );
 }
 
-GLuint pack_4fv_to_uint_10_10_10_2(const GLfloat *v)
-{
+GLuint pack_4fv_to_uint_10_10_10_2(const GLfloat *v) {
 	return pack_4f_to_uint_10_10_10_2(v[0], v[1], v[2], v[3]);
 }
 
@@ -469,8 +453,7 @@ GLuint pack_4fv_to_uint_10_10_10_2(const GLfloat *v)
 GLint pack_4f_to_int_10_10_10_2(GLfloat x,
                                 GLfloat y,
                                 GLfloat z,
-                                GLfloat w)
-{
+                                GLfloat w) {
 	// clamp the values
 	x = _clamp_float(x, -1.0f, 1.0f)*511.0f;
 	y = _clamp_float(y, -1.0f, 1.0f)*511.0f;
@@ -493,9 +476,57 @@ GLint pack_4f_to_int_10_10_10_2(GLfloat x,
 	         | (signw << 30 & 1) );
 }
 
-GLint pack_4fv_to_int_10_10_10_2(const GLfloat *v)
-{
+GLint pack_4fv_to_int_10_10_10_2(const GLfloat *v) {
 	return pack_4f_to_int_10_10_10_2(v[0], v[1], v[2], v[3]);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Upload a TGA image to a texture
+void tex_tga_image2D(const std::string& filename,
+	                 GLuint texture,
+	                 GLboolean genMipmaps,
+	                 GLboolean immutable) throw(FWException) {
+	Tga tga(filename); // load tga
+	GLenum internalFormat = GL_RED; // set internal format
+	GLenum pixelFormat = GL_RED;
+	if(tga.PixelFormat() == fw::Tga::PIXEL_FORMAT_LUMINANCE_ALPHA)
+		internalFormat = GL_RG;
+	else if(tga.PixelFormat() == fw::Tga::PIXEL_FORMAT_BGR) {
+		internalFormat = GL_RGB;
+		pixelFormat = GL_BGR;
+	}
+	else if(tga.PixelFormat() == fw::Tga::PIXEL_FORMAT_BGRA) {
+		internalFormat = GL_RGBA;
+		pixelFormat = GL_BGRA;
+	}
+
+	// immutable
+	if(immutable == GL_TRUE) {
+		GLuint levels = 1;
+		GLuint size = tga.Width() > tga.Height() ? tga.Width(): tga.Height();
+
+		while(size > 1 && genMipmaps == GL_TRUE) {
+			++levels;
+			size /= 2;
+		}
+
+		glTexStorage2D(GL_TEXTURE_2D, levels, internalFormat, tga.Width(), tga.Height());
+	}
+
+	// set data
+	glTexImage2D(GL_TEXTURE_2D,
+		         0,
+		         internalFormat,
+		         tga.Width(),
+		         tga.Height(),
+		         0,
+		         pixelFormat,
+		         GL_UNSIGNED_BYTE,
+		         tga.Pixels());
+
+	if(genMipmaps == GL_TRUE)
+		glGenerateMipmap(GL_TEXTURE_2D);
 }
 
 
