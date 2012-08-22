@@ -70,6 +70,34 @@ public:
 	}
 };
 
+class _InvalidPerspectiveException : public FWException {
+public:
+	_InvalidPerspectiveException() {
+		mMessage = "Invalid perspective projections parameters.";
+	}
+};
+
+class _InvalidOrthoException : public FWException {
+public:
+	_InvalidOrthoException() {
+		mMessage = "Invalid ortho projection parameters.";
+	}
+};
+
+class _DebugOutputNotSupportedException : public FWException {
+public:
+	_DebugOutputNotSupportedException() {
+		mMessage = "Platform does not support ARB_debug_output.";
+	}
+};
+
+class _DebugOutputAlreadyConfiguredException : public FWException {
+public:
+	_DebugOutputAlreadyConfiguredException() {
+		mMessage = "Debug Output can only be set once.";
+	}
+};
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Local functions
@@ -88,11 +116,6 @@ static GLushort _unpack_uint16(GLubyte msb, GLubyte lsb) {
 static float _clamp_float(float x, float min, float max) {
 	return std::min( max, std::max(min, x) );
 }
-
-
-////////////////////////////////////////////////////////////////////////////////
-// Half implementation
-
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -174,8 +197,187 @@ static GLvoid _gl_debug_message_callback( GLenum source,
                                           GLsizei length,
                                           const GLchar* message,
                                           GLvoid* userParam ) {
-	std::cerr << "[DEBUG_OUTPUT] " << message << std::endl;
-	//throw _GLErrorException(message);
+    std::ofstream& outputStream = *reinterpret_cast<std::ofstream*>(userParam);
+	outputStream << "[DEBUG_OUTPUT] " << message << std::endl;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// create a frustum matrix
+#define left   frustum[0]
+#define right  frustum[1]
+#define bottom frustum[2]
+#define top    frustum[3]
+#define near   frustum[4]
+#define far    frustum[5]
+
+static void _perspective_matrix(GLfloat *frustum, 
+                                GLfloat *matrix) throw(FWException) {
+	if(left == right || bottom == top || near > far || near < 0.0f)
+		throw _InvalidPerspectiveException();
+	float oneOverRightMinusLeft = 1.0f/(right - left);
+	float oneOverTopMinusBottom = 1.0f/(top   - bottom);
+	float oneOverFarMinusNear   = 1.0f/(far   - near);
+	float twoNearVal            = 2.0f * near;
+	matrix[0]  = twoNearVal * oneOverRightMinusLeft;
+	matrix[5]  = twoNearVal * oneOverTopMinusBottom;
+	matrix[8]  = (right + left) * oneOverRightMinusLeft;
+	matrix[9]  = (top + bottom) * oneOverTopMinusBottom;
+	matrix[10] = -(far + near) * oneOverFarMinusNear;
+	matrix[11] = -1.0f;
+	matrix[14] = -(twoNearVal*far) * oneOverFarMinusNear;
+}
+
+static void _ortho_matrix(GLfloat *frustum, 
+                          GLfloat *matrix) throw(FWException) {
+	if(left == right || bottom == top || near == far)
+		throw _InvalidOrthoException();
+	float oneOverRightMinusLeft = 1.0f/(right - left);
+	float oneOverTopMinusBottom = 1.0f/(top - bottom);
+	float oneOverFarMinusNear   = 1.0f/(far - near);
+	matrix[0]  = 2.0f * oneOverRightMinusLeft;
+	matrix[5]  = 2.0f * oneOverTopMinusBottom;
+	matrix[10] = -2.0f * oneOverFarMinusNear;
+	matrix[12] = -(right + left) * oneOverRightMinusLeft;
+	matrix[13] = -(top + bottom) * oneOverTopMinusBottom;
+	matrix[14] = -(far + near) * oneOverFarMinusNear;
+	matrix[15] = 1.0f;
+} 
+
+#undef left
+#undef right  
+#undef bottom 
+#undef top    
+#undef near   
+#undef far    
+ 
+static void _frustum_matrix(GLfloat *frustum, 
+                            bool perspective,
+                            GLfloat *matrix) {
+	matrix[1]=matrix[2]
+	         =matrix[3]
+	         =matrix[4]
+	         =matrix[6]
+	         =matrix[7]
+	         =0.f;
+	if(perspective)
+		_perspective_matrix(frustum, matrix);
+	else
+		_ortho_matrix(frustum, matrix);
+} 
+
+
+////////////////////////////////////////////////////////////////////////////////
+// save buffer
+
+
+
+GLvoid _save_gl_buffer(GLint x,
+	                   GLint y,
+	                   GLsizei width,
+	                   GLsizei height,
+	                   GLenum buffer) throw(FWException) {
+	static GLuint sShotCounter = 1;
+	GLubyte *tgaPixels = NULL;
+	GLint tgaWidth, tgaHeight;
+	GLint readFramebuffer,
+	      readBuffer,
+	      pixelPackBufferBinding,
+	      packSwapBytes, packLsbFirst, packRowLength, packImageHeight,
+	      packSkipRows, packSkipPixels, packSkipImages, packAlignment;
+
+	// check values
+	if(x>=width || y>=height || x<0 || y<0)
+		throw _InvalidViewportDimensionsException();
+
+	// compute final tga dimensions
+	tgaWidth  = width  - x;
+	tgaHeight = height - y;
+
+	// save GL state
+	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &readFramebuffer);
+	glGetIntegerv(GL_READ_BUFFER, &readBuffer);
+	glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &pixelPackBufferBinding);
+	glGetIntegerv(GL_PACK_SWAP_BYTES, &packSwapBytes);
+	glGetIntegerv(GL_PACK_LSB_FIRST, &packLsbFirst);
+	glGetIntegerv(GL_PACK_ROW_LENGTH, &packRowLength);
+	glGetIntegerv(GL_PACK_IMAGE_HEIGHT, &packImageHeight);
+	glGetIntegerv(GL_PACK_SKIP_ROWS, &packSkipRows);
+	glGetIntegerv(GL_PACK_SKIP_PIXELS, &packSkipPixels);
+	glGetIntegerv(GL_PACK_SKIP_IMAGES, &packSkipImages);
+	glGetIntegerv(GL_PACK_ALIGNMENT, &packAlignment);
+
+	// push gl state
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+	glReadBuffer(buffer);
+	glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+	glPixelStorei(GL_PACK_SWAP_BYTES, 0);
+	glPixelStorei(GL_PACK_LSB_FIRST, 0);
+	glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+	glPixelStorei(GL_PACK_IMAGE_HEIGHT, 0);
+	glPixelStorei(GL_PACK_SKIP_ROWS, 0);
+	glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
+	glPixelStorei(GL_PACK_SKIP_IMAGES, 0);
+	glPixelStorei(GL_PACK_ALIGNMENT, 4);
+
+	// allocate data and read mPixels frome framebuffer
+	tgaPixels = new GLubyte[tgaWidth*tgaHeight*3];
+	glReadPixels(x, y, width, height, GL_BGR, GL_UNSIGNED_BYTE, tgaPixels);
+
+	// compute new filename
+	std::stringstream ss;
+	ss << "screenshot";
+	if(sShotCounter < 10)
+		ss << '0';
+	if(sShotCounter < 100)
+		ss << '0';
+	ss << sShotCounter << ".tga";
+
+	// open file
+	std::ofstream fileStream( ss.str().c_str(),
+	                          std::ifstream::out | std::ifstream::binary );
+	// check opening
+	if(!fileStream)
+		throw _FileNotFoundException(ss.str().c_str());
+
+	// create header
+	GLchar tgaHeader[18]= {
+		0,                                     // image identification field
+		0,                                     // colormap type
+		2,                                     // image type code
+		0,0,0,0,0,                             // color map spec (ignored here)
+		0,0,                                   // x origin of image
+		0,0,                                   // y origin of image
+		tgaWidth & 255,  tgaWidth >> 8 & 255,  // width of the image
+		tgaHeight & 255, tgaHeight >> 8 & 255, // height of the image
+		24,                                    // bits per pixel
+		0                                      // image descriptor byte
+	};
+
+	// write header and pixel data
+	fileStream.write(tgaHeader, 18);
+	fileStream.write(reinterpret_cast<const GLchar*>(tgaPixels),
+	                 tgaWidth*tgaHeight*3);
+	fileStream.close();
+
+	// restore GL state
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, readFramebuffer);
+	glReadBuffer(readBuffer);
+	glBindBuffer(GL_PIXEL_PACK_BUFFER, pixelPackBufferBinding);
+	glPixelStorei(GL_PACK_SWAP_BYTES, packSwapBytes);
+	glPixelStorei(GL_PACK_LSB_FIRST, packLsbFirst);
+	glPixelStorei(GL_PACK_ROW_LENGTH, packRowLength);
+	glPixelStorei(GL_PACK_IMAGE_HEIGHT, packImageHeight);
+	glPixelStorei(GL_PACK_SKIP_ROWS, packSkipRows);
+	glPixelStorei(GL_PACK_SKIP_PIXELS, packSkipPixels);
+	glPixelStorei(GL_PACK_SKIP_IMAGES, packSkipImages);
+	glPixelStorei(GL_PACK_ALIGNMENT, packAlignment);
+
+	// free memory
+	delete[] tgaPixels;
+
+	// increment screenshot counter
+	++sShotCounter;
 }
 
 
@@ -204,11 +406,24 @@ GLuint next_power_of_two(GLuint number) {
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// Next power of two exponent
+GLuint next_power_of_two_exponent(GLuint number) {
+	GLuint pot = next_power_of_two(number);
+	GLuint exp = 1;
+	while(!(pot & 0x01)){
+		pot >>= 1;
+		++exp;
+	}
+	return exp;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
 // build glsl program
-GLvoid build_glsl_program( GLuint program, 
-                           const std::string& srcfile,
-                           const std::string& options,
-                           GLboolean link ) throw(FWException) {
+GLvoid build_glsl_program(GLuint program, 
+                          const std::string& srcfile,
+                          const std::string& options,
+                          GLboolean link ) throw(FWException) {
 	// open source file
 	std::ifstream file(srcfile.c_str());
 	if(file.fail())
@@ -285,123 +500,41 @@ GLvoid build_glsl_program( GLuint program,
 ////////////////////////////////////////////////////////////////////////////////
 // Check OpenGL error
 GLvoid check_gl_error() throw (FWException) {
-	static bool isArbDebugOutputConfigured = false;
-	if(GLEW_ARB_debug_output && !isArbDebugOutputConfigured) {
-		glDebugMessageCallbackARB(
-			reinterpret_cast<GLDEBUGPROCARB>(&_gl_debug_message_callback),
-			NULL );
-		isArbDebugOutputConfigured = true;
-	}
 	GLenum error = glGetError();
 	if(GL_NO_ERROR != error) {
 		throw _GLErrorException(_gl_error_to_string(error));
 	}
 }
 
+GLvoid init_debug_output(std::ostream& outputStream) throw (FWException) {
+	static bool isArbDebugOutputConfigured = false;
+	if(!GLEW_ARB_debug_output)  
+		throw _DebugOutputNotSupportedException();
+	if(isArbDebugOutputConfigured)
+	 	throw _DebugOutputAlreadyConfiguredException();
+	 	
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
+	glDebugMessageCallbackARB(
+		reinterpret_cast<GLDEBUGPROCARB>(&_gl_debug_message_callback),
+		reinterpret_cast<GLvoid*>(&outputStream) );
+	isArbDebugOutputConfigured = true;
+	
+}
 
 ////////////////////////////////////////////////////////////////////////////////
-// Take a screen shot
-GLvoid save_gl_front_buffer( GLint x,
-	                         GLint y,
-	                         GLsizei width,
-	                         GLsizei height) throw(FWException) {
-	static GLuint sShotCounter = 1;
-	GLubyte *tgaPixels = NULL;
-	GLint tgaWidth, tgaHeight;
-	GLint pixelPackBufferBinding,
-	      readBuffer,
-	      packSwapBytes, packLsbFirst, packRowLength, packImageHeight,
-	      packSkipRows, packSkipPixels, packSkipImages, packAlignment;
+// Take a screenshot
+GLvoid save_gl_front_buffer(GLint x,
+	                        GLint y,
+	                        GLsizei width,
+	                        GLsizei height) throw(FWException) {
+	_save_gl_buffer(x,y,width,height,GL_FRONT);
+}
 
-	// check values
-	if(x>=width || y>=height || x<0 || y<0)
-		throw _InvalidViewportDimensionsException();
-
-	// compute final tga dimensions
-	tgaWidth  = width  - x;
-	tgaHeight = height - y;
-
-	// save GL state
-	glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &pixelPackBufferBinding);
-	glGetIntegerv(GL_READ_BUFFER, &readBuffer);
-	glGetIntegerv(GL_PACK_SWAP_BYTES, &packSwapBytes);
-	glGetIntegerv(GL_PACK_LSB_FIRST, &packLsbFirst);
-	glGetIntegerv(GL_PACK_ROW_LENGTH, &packRowLength);
-	glGetIntegerv(GL_PACK_IMAGE_HEIGHT, &packImageHeight);
-	glGetIntegerv(GL_PACK_SKIP_ROWS, &packSkipRows);
-	glGetIntegerv(GL_PACK_SKIP_PIXELS, &packSkipPixels);
-	glGetIntegerv(GL_PACK_SKIP_IMAGES, &packSkipImages);
-	glGetIntegerv(GL_PACK_ALIGNMENT, &packAlignment);
-
-	// push gl state
-	glReadBuffer(GL_FRONT);
-	glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-	glPixelStorei(GL_PACK_SWAP_BYTES, 0);
-	glPixelStorei(GL_PACK_LSB_FIRST, 0);
-	glPixelStorei(GL_PACK_ROW_LENGTH, 0);
-	glPixelStorei(GL_PACK_IMAGE_HEIGHT, 0);
-	glPixelStorei(GL_PACK_SKIP_ROWS, 0);
-	glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
-	glPixelStorei(GL_PACK_SKIP_IMAGES, 0);
-	glPixelStorei(GL_PACK_ALIGNMENT, 4);
-
-	// allocate data and read mPixels frome framebuffer
-	tgaPixels = new GLubyte[tgaWidth*tgaHeight*3];
-	glReadPixels(x, y, width, height, GL_BGR, GL_UNSIGNED_BYTE, tgaPixels);
-
-	// compute new filename
-	std::stringstream ss;
-	ss << "screenshot";
-	if(sShotCounter < 10)
-		ss << '0';
-	if(sShotCounter < 100)
-		ss << '0';
-	ss << sShotCounter << ".tga";
-
-	// open file
-	std::ofstream fileStream( ss.str().c_str(),
-	                          std::ifstream::out | std::ifstream::binary );
-	// check opening
-	if(!fileStream)
-		throw _FileNotFoundException(ss.str().c_str());
-
-	// create header
-	GLchar tgaHeader[18]= {
-		0,                                     // image identification field
-		0,                                     // colormap type
-		2,                                     // image type code
-		0,0,0,0,0,                             // color map spec (ignored here)
-		0,0,                                   // x origin of image
-		0,0,                                   // y origin of image
-		tgaWidth & 255,  tgaWidth >> 8 & 255,  // width of the image
-		tgaHeight & 255, tgaHeight >> 8 & 255, // height of the image
-		24,                                    // bits per pixel
-		0                                      // image descriptor byte
-	};
-
-	// write header and pixel data
-	fileStream.write(tgaHeader, 18);
-	fileStream.write(reinterpret_cast<const GLchar*>(tgaPixels),
-	                 tgaWidth*tgaHeight*3);
-	fileStream.close();
-
-	// restore GL state
-	glReadBuffer(readBuffer);
-	glBindBuffer(GL_PIXEL_PACK_BUFFER, pixelPackBufferBinding);
-	glPixelStorei(GL_PACK_SWAP_BYTES, packSwapBytes);
-	glPixelStorei(GL_PACK_LSB_FIRST, packLsbFirst);
-	glPixelStorei(GL_PACK_ROW_LENGTH, packRowLength);
-	glPixelStorei(GL_PACK_IMAGE_HEIGHT, packImageHeight);
-	glPixelStorei(GL_PACK_SKIP_ROWS, packSkipRows);
-	glPixelStorei(GL_PACK_SKIP_PIXELS, packSkipPixels);
-	glPixelStorei(GL_PACK_SKIP_IMAGES, packSkipImages);
-	glPixelStorei(GL_PACK_ALIGNMENT, packAlignment);
-
-	// free memory
-	delete[] tgaPixels;
-
-	// increment screenshot counter
-	++sShotCounter;
+GLvoid save_gl_back_buffer(GLint x,
+	                       GLint y,
+	                       GLsizei width,
+	                       GLsizei height) throw(FWException) {
+	_save_gl_buffer(x,y,width,height,GL_BACK);
 }
 
 
@@ -459,6 +592,176 @@ GLint pack_4f_to_int_10_10_10_2(GLfloat x,
 GLint pack_4fv_to_int_10_10_10_2(const GLfloat *v) {
 	return pack_4f_to_int_10_10_10_2(v[0], v[1], v[2], v[3]);
 }
+
+
+////////////////////////////////////////////////////////////////////////////////
+// render with fsaa
+#define left   frustum[0]
+#define right  frustum[1]
+#define bottom frustum[2]
+#define top    frustum[3]
+#define near   frustum[4]
+#define far    frustum[5]
+
+void render_fsaa(GLsizei width, 
+	             GLsizei height,
+	             GLsizei sampleCnt,
+	             GLfloat *frustum, // frustum data
+	             bool perspective,
+	             void (*set_transforms_func)(GLfloat *perspectiveMatrix),
+	             void (*draw_func)() ) throw(FWException) {
+	const GLfloat frustumScaleX = (right - left) / GLfloat(width);
+	const GLfloat frustumScaleY = (top - bottom) / GLfloat(height);
+	GLuint framebuffers[3], depthbuffer(0), 
+	       aaColourbuffer(0), colourbuffer(0);
+	GLint aaMipLevels     = next_power_of_two_exponent(sampleCnt);
+	GLint activeRenderbuffer, activeReadFramebuffer, activeDrawFramebuffer,
+	      activeReadBuffer, activeDrawBuffer, 
+	      activeTextureUnit, activeTexture,
+	      activeViewport[4];
+
+	// check inputs
+	
+	// save GL state
+	glGetIntegerv(GL_READ_BUFFER, &activeReadBuffer);
+	glGetIntegerv(GL_DRAW_BUFFER, &activeDrawBuffer);
+	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING,
+	              &activeDrawFramebuffer);
+	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING,
+	              &activeReadFramebuffer);
+	glGetIntegerv(GL_RENDERBUFFER_BINDING,
+	              &activeRenderbuffer);
+	glGetIntegerv(GL_ACTIVE_TEXTURE,
+	              &activeTextureUnit);
+	glActiveTexture(GL_TEXTURE0);
+	glGetIntegerv(GL_TEXTURE_BINDING_2D,
+	              &activeTexture);
+	glGetIntegerv(GL_VIEWPORT,
+	              activeViewport);
+		
+	// create resources
+	glGenFramebuffers(3, framebuffers);
+	glGenRenderbuffers(1, &depthbuffer);
+	glGenTextures(1, &aaColourbuffer);
+	glGenTextures(1, &colourbuffer);
+
+	// configure renderbuffers
+	glBindRenderbuffer(GL_RENDERBUFFER, depthbuffer);
+	glRenderbufferStorage(GL_RENDERBUFFER,
+	                      GL_DEPTH_COMPONENT,
+	                      sampleCnt,
+	                      sampleCnt);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	// configure textures
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, colourbuffer);
+	glTexStorage2D(GL_TEXTURE_2D,
+	               1,
+	               GL_RGBA8,
+	               width,
+	               height);
+	glBindTexture(GL_TEXTURE_2D, aaColourbuffer);
+	glTexStorage2D(GL_TEXTURE_2D,
+	               aaMipLevels,
+	               GL_RGBA8,
+	               sampleCnt,
+	               sampleCnt);
+
+	// configure framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[1]);
+	glFramebufferTexture2D(GL_FRAMEBUFFER,
+	                       GL_COLOR_ATTACHMENT0,
+	                       GL_TEXTURE_2D,
+	                       aaColourbuffer,
+	                       aaMipLevels-1);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[2]);
+	glFramebufferTexture2D(GL_FRAMEBUFFER,
+	                       GL_COLOR_ATTACHMENT0,
+	                       GL_TEXTURE_2D,
+	                       colourbuffer,
+	                       0);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[0]);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER,
+	                          GL_DEPTH_ATTACHMENT,
+	                          GL_RENDERBUFFER,
+	                          depthbuffer);
+	glFramebufferTexture2D(GL_FRAMEBUFFER,
+	                       GL_COLOR_ATTACHMENT0,
+	                       GL_TEXTURE_2D,
+	                       aaColourbuffer,
+	                       0);
+		                       
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+	glReadBuffer(GL_COLOR_ATTACHMENT0);
+
+	// reset the texture units
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, activeTexture);
+	glActiveTexture(activeTextureUnit);
+
+	// render the scene with sub projections
+	glViewport(0,0,sampleCnt,sampleCnt);
+	for(GLint x=0; x<width; ++x)
+		for(GLint y=0; y<height; ++y) {
+			// compute the frustum and projection matrix
+			GLfloat scaledMatrix[16];
+			GLfloat scaledFrustum[6] = {
+				left+x*frustumScaleX,
+				left+(x+1)*frustumScaleX,
+				bottom+y*frustumScaleY,
+				bottom+(y+1)*frustumScaleY,
+				near, far };
+			_frustum_matrix(scaledFrustum, perspective, scaledMatrix);
+			
+			// set uniforms
+			set_transforms_func(scaledMatrix);
+			
+			// draw the scene
+			draw_func();
+						
+			// mipmap and copy data to framebuffer
+			glBindTexture(GL_TEXTURE_2D, aaColourbuffer);
+			glGenerateMipmap(GL_TEXTURE_2D);
+			glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[1]);
+			glBindTexture(GL_TEXTURE_2D, colourbuffer);
+			glCopyTexSubImage2D(GL_TEXTURE_2D,
+			                    0,
+			                    x,y,
+			                    0,0,
+			                    1,1);
+			glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[0]);
+		}
+
+	// render to back buffer
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffers[2]);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glDrawBuffer(GL_BACK);
+	glBlitFramebuffer(0,0,width,height,0,0,width,height,
+	                  GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+	// restore GL state (order matters !)
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, activeDrawFramebuffer);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, activeReadFramebuffer);
+	glBindRenderbuffer(GL_RENDERBUFFER, activeRenderbuffer);
+	glReadBuffer(activeReadBuffer);
+	glDrawBuffer(activeDrawBuffer);
+	glViewport(activeViewport[0],activeViewport[1],
+	           activeViewport[2],activeViewport[3]);
+
+	// delete resources
+	glDeleteFramebuffers(3, framebuffers);
+	glDeleteRenderbuffers(1, &depthbuffer);
+	glDeleteTextures(1, &aaColourbuffer);
+	glDeleteTextures(1, &colourbuffer);
+}
+
+#undef left
+#undef right  
+#undef bottom 
+#undef top    
+#undef near   
+#undef far  
 
 
 ////////////////////////////////////////////////////////////////////////////////

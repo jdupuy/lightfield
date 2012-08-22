@@ -28,9 +28,11 @@ namespace fw
 	// Check if power of two
 	bool is_power_of_two(GLuint number);
 
-
 	// Get next power of two
 	GLuint next_power_of_two(GLuint number);
+
+	// Get exponent of next power of two
+	GLuint next_power_of_two_exponent(GLuint number);
 
 
 	// Build GLSL program
@@ -43,15 +45,20 @@ namespace fw
 	// Check OpenGL errors (uses ARB_debug_output if available)
 	// (throws an exception if an error is detected)
 	GLvoid check_gl_error() throw(FWException);
+	GLvoid init_debug_output(std::ostream& outputStream) throw(FWException);
 
 
-	// Save a portion of the OpenGL front buffer (= take a screenshot).
+	// Save a portion of the OpenGL front/back buffer (= take a screenshot).
 	// File will be a TGA in BGR format, uncompressed.
 	// The OpenGL state is restored the way it was before this function call.
 	GLvoid save_gl_front_buffer(GLint x,
 	                            GLint y,
 	                            GLsizei width,
 	                            GLsizei height) throw(FWException);
+	GLvoid save_gl_back_buffer(GLint x,
+	                           GLint y,
+	                           GLsizei width,
+	                           GLsizei height) throw(FWException);
 
 
 	// Pack four floats in an unsigned integer
@@ -84,6 +91,26 @@ namespace fw
 	                     GLuint texture,
 	                     GLboolean genMipmaps,
 	                     GLboolean immutable) throw(FWException);
+
+	// Render the frame using FSAA. Each pixel will be 
+	// generated from the last mip level of a sampleCnt x sampleCnt 
+	// texture. This is a heavy process which should be used
+	// to generate ground truth images only.
+	// - sampleCnt should be greater than 8 and preferably a power of two
+	// - frustum gives the params of the projection (left, right, etc.)
+	// - set_transform_func uploads the projection matrix to all the drawing
+	// programs. 
+	// - draw_func must perform all (and only all) the draw calls to the 
+	// back buffer
+	// Note: Requires an OpenGL4.3 GPU.
+	void render_fsaa(GLsizei width, 
+	                 GLsizei height,
+	                 GLsizei sampleCnt,
+	                 GLfloat *frustum, // frustum data
+	                 bool perspective, // perspective of ortho matrix
+	                 void (*set_transforms_func)(float *perspectiveMatrix),
+	                 void (*draw_func)() ) throw(FWException);
+
 
 	// Indirect drawing command : DrawArraysIndirectCommand
 	typedef struct {
