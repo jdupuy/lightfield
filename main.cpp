@@ -106,7 +106,7 @@ void on_init() {
 
 #ifdef _ANT_ENABLE
 	// start ant
-	TwInit(TW_OPENGL, NULL);
+	TwInit(TW_OPENGL_CORE, NULL);
 	// send the ''glutGetModifers'' function pointer to AntTweakBar
 	TwGLUTModifiersFunc(glutGetModifiers);
 
