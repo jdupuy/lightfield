@@ -285,7 +285,7 @@ int main(int argc, char** argv) {
 
 
 	// build window
-	glutInitDisplayMode(/*GLUT_DEPTH |*/ GLUT_DOUBLE | GLUT_RGBA);
+	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
 	glutInitWindowSize(800, 600);
 	glutInitWindowPosition(0, 0);
 	glutCreateWindow("texture filtering");
