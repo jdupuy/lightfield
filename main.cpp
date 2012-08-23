@@ -280,13 +280,9 @@ int main(int argc, char** argv) {
 	// init glut
 	glutInit(&argc, argv);
 	glutInitContextVersion(CONTEXT_MAJOR ,CONTEXT_MINOR);
-#ifdef _ANT_ENABLE
-	glutInitContextFlags(GLUT_DEBUG);
-	glutInitContextProfile(GLUT_COMPATIBILITY_PROFILE);
-#else
 	glutInitContextFlags(GLUT_DEBUG | GLUT_FORWARD_COMPATIBLE);
 	glutInitContextProfile(GLUT_CORE_PROFILE);
-#endif
+
 
 	// build window
 	glutInitDisplayMode(/*GLUT_DEPTH |*/ GLUT_DOUBLE | GLUT_RGBA);
