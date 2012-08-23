@@ -88,7 +88,6 @@ namespace fw
 	// Upload a TGA in a 2D texture
 	// immutable should be set to GL_FALSE on OpenGL3.3 (and older) hardware
 	void tex_tga_image2D(const std::string& filename,
-	                     GLuint texture,
 	                     GLboolean genMipmaps,
 	                     GLboolean immutable) throw(FWException);
 
@@ -107,7 +106,7 @@ namespace fw
 	                 GLsizei height,
 	                 GLsizei sampleCnt,
 	                 GLfloat *frustum, // frustum data
-	                 bool perspective, // perspective of ortho matrix
+	                 GLboolean perspective, // perspective of ortho matrix
 	                 void (*set_transforms_func)(float *perspectiveMatrix),
 	                 void (*draw_func)() ) throw(FWException);
 

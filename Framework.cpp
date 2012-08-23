@@ -98,6 +98,13 @@ public:
 	}
 };
 
+class _ImmutableTexturesNotSupportedException : public FWException {
+public:
+	_ImmutableTexturesNotSupportedException() {
+		mMessage = "Platform does not support ARB_texture_storage.";
+	}
+};
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Local functions
@@ -607,7 +614,7 @@ void render_fsaa(GLsizei width,
 	             GLsizei height,
 	             GLsizei sampleCnt,
 	             GLfloat *frustum, // frustum data
-	             bool perspective,
+	             GLboolean perspective,
 	             void (*set_transforms_func)(GLfloat *perspectiveMatrix),
 	             void (*draw_func)() ) throw(FWException) {
 	const GLfloat frustumScaleX = (right - left) / GLfloat(width);
@@ -691,7 +698,7 @@ void render_fsaa(GLsizei width,
 	                       GL_TEXTURE_2D,
 	                       aaColourbuffer,
 	                       0);
-		                       
+
 	glDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glReadBuffer(GL_COLOR_ATTACHMENT0);
 
@@ -716,10 +723,10 @@ void render_fsaa(GLsizei width,
 			
 			// set uniforms
 			set_transforms_func(scaledMatrix);
-			
+
 			// draw the scene
 			draw_func();
-						
+
 			// mipmap and copy data to framebuffer
 			glBindTexture(GL_TEXTURE_2D, aaColourbuffer);
 			glGenerateMipmap(GL_TEXTURE_2D);
@@ -767,7 +774,6 @@ void render_fsaa(GLsizei width,
 ////////////////////////////////////////////////////////////////////////////////
 // Upload a TGA image to a texture
 void tex_tga_image2D(const std::string& filename,
-	                 GLuint texture,
 	                 GLboolean genMipmaps,
 	                 GLboolean immutable) throw(FWException) {
 	Tga tga(filename); // load tga
@@ -786,6 +792,8 @@ void tex_tga_image2D(const std::string& filename,
 
 	// immutable
 	if(immutable == GL_TRUE) {
+		if(!GLEW_ARB_texture_storage)
+			throw _ImmutableTexturesNotSupportedException();
 		GLuint levels = 1;
 		GLuint size = tga.Width() > tga.Height() ? tga.Width(): tga.Height();
 
