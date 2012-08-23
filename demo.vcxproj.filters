@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<ItemGroup>
+		<Filter Include="core">
+			<UniqueIdentifier>{25FD1D47-321D-1330-5EB2-802DDB3E5D82}</UniqueIdentifier>
+		</Filter>
+	</ItemGroup>
+	<ItemGroup>
+		<ClInclude Include="Framework.hpp" />
+		<ClInclude Include="glew.hpp" />
+	</ItemGroup>
+	<ItemGroup>
+		<ClCompile Include="Framework.cpp" />
+		<ClCompile Include="main.cpp" />
+		<ClCompile Include="core\Affine.cpp">
+			<Filter>core</Filter>
+		</ClCompile>
+		<ClCompile Include="core\Matrix2x2.cpp">
+			<Filter>core</Filter>
+		</ClCompile>
+		<ClCompile Include="core\Vector2.cpp">
+			<Filter>core</Filter>
+		</ClCompile>
+		<ClCompile Include="core\Matrix4x4.cpp">
+			<Filter>core</Filter>
+		</ClCompile>
+		<ClCompile Include="core\Vector3.cpp">
+			<Filter>core</Filter>
+		</ClCompile>
+		<ClCompile Include="core\Projection.cpp">
+			<Filter>core</Filter>
+		</ClCompile>
+		<ClCompile Include="core\Matrix3x3.cpp">
+			<Filter>core</Filter>
+		</ClCompile>
+		<ClCompile Include="core\Vector4.cpp">
+			<Filter>core</Filter>
+		</ClCompile>
+	</ItemGroup>
+</Project>
