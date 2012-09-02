@@ -105,6 +105,13 @@ public:
 	}
 };
 
+class _NullParamException : public FWException {
+public:
+	_NullParamException() {
+		mMessage = "Parameter passed as NULL.";
+	}
+};
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Local functions
@@ -276,9 +283,6 @@ static void _frustum_matrix(GLfloat *frustum,
 
 ////////////////////////////////////////////////////////////////////////////////
 // save buffer
-
-
-
 GLvoid _save_gl_buffer(GLint x,
 	                   GLint y,
 	                   GLsizei width,
@@ -385,6 +389,66 @@ GLvoid _save_gl_buffer(GLint x,
 
 	// increment screenshot counter
 	++sShotCounter;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Upload TGA data
+void _tex_tga_image2D(GLenum target,
+                      const std::string& filename,
+                      GLboolean genMipmaps,
+                      GLboolean immutable) {
+	Tga tga(filename); // load tga
+	GLenum internalFormat = GL_RED; // set internal format
+	GLenum pixelFormat = GL_RED;
+	if(tga.PixelFormat() == fw::Tga::PIXEL_FORMAT_LUMINANCE_ALPHA)
+		internalFormat = GL_RG;
+	else if(tga.PixelFormat() == fw::Tga::PIXEL_FORMAT_BGR) {
+		internalFormat = GL_RGB;
+		pixelFormat = GL_BGR;
+	}
+	else if(tga.PixelFormat() == fw::Tga::PIXEL_FORMAT_BGRA) {
+		internalFormat = GL_RGBA;
+		pixelFormat = GL_BGRA;
+	}
+
+	// immutable
+	if(immutable == GL_TRUE) {
+		if(!GLEW_ARB_texture_storage)
+			throw _ImmutableTexturesNotSupportedException();
+		GLuint size = tga.Width() > tga.Height() ? tga.Width(): tga.Height();
+		GLuint levels = genMipmaps ? next_power_of_two_exponent(size)
+		                           : 1;
+
+		if(target == GL_TEXTURE_CUBE_MAP_POSITIVE_X ||
+		   target == GL_TEXTURE_CUBE_MAP_NEGATIVE_X ||
+		   target == GL_TEXTURE_CUBE_MAP_POSITIVE_Y ||
+		   target == GL_TEXTURE_CUBE_MAP_NEGATIVE_Y ||
+		   target == GL_TEXTURE_CUBE_MAP_POSITIVE_Z ||
+		   target == GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
+			glTexStorage2D(GL_TEXTURE_CUBE_MAP,
+			               levels,
+			               internalFormat,
+			               tga.Width(),
+			               tga.Height());
+		else
+			glTexStorage2D(target,
+			               levels,
+			               internalFormat,
+			               tga.Width(),
+			               tga.Height());
+	}
+
+	// set data
+	glTexImage2D(target,
+	             0,
+	             internalFormat,
+	             tga.Width(),
+	             tga.Height(),
+	             0,
+	             pixelFormat,
+	             GL_UNSIGNED_BYTE,
+	             tga.Pixels());
 }
 
 
@@ -610,7 +674,7 @@ GLint pack_4fv_to_int_10_10_10_2(const GLfloat *v) {
 #define near   frustum[4]
 #define far    frustum[5]
 
-void render_fsaa(GLsizei width, 
+void render_fsaa(GLsizei width,
 	             GLsizei height,
 	             GLsizei sampleCnt,
 	             GLfloat *frustum, // frustum data
@@ -628,7 +692,11 @@ void render_fsaa(GLsizei width,
 	      activeViewport[4];
 
 	// check inputs
-	
+	if(frustum==NULL || 
+	   set_transforms_func == NULL || 
+	   draw_func == NULL)
+		throw _NullParamException();
+
 	// save GL state
 	glGetIntegerv(GL_READ_BUFFER, &activeReadBuffer);
 	glGetIntegerv(GL_DRAW_BUFFER, &activeDrawBuffer);
@@ -645,7 +713,7 @@ void render_fsaa(GLsizei width,
 	              &activeTexture);
 	glGetIntegerv(GL_VIEWPORT,
 	              activeViewport);
-		
+
 	// create resources
 	glGenFramebuffers(3, framebuffers);
 	glGenRenderbuffers(1, &depthbuffer);
@@ -774,51 +842,38 @@ void render_fsaa(GLsizei width,
 ////////////////////////////////////////////////////////////////////////////////
 // Upload a TGA image to a texture
 void tex_tga_image2D(const std::string& filename,
-	                 GLboolean genMipmaps,
-	                 GLboolean immutable) throw(FWException) {
-	Tga tga(filename); // load tga
-	GLenum internalFormat = GL_RED; // set internal format
-	GLenum pixelFormat = GL_RED;
-	if(tga.PixelFormat() == fw::Tga::PIXEL_FORMAT_LUMINANCE_ALPHA)
-		internalFormat = GL_RG;
-	else if(tga.PixelFormat() == fw::Tga::PIXEL_FORMAT_BGR) {
-		internalFormat = GL_RGB;
-		pixelFormat = GL_BGR;
-	}
-	else if(tga.PixelFormat() == fw::Tga::PIXEL_FORMAT_BGRA) {
-		internalFormat = GL_RGBA;
-		pixelFormat = GL_BGRA;
-	}
-
-	// immutable
-	if(immutable == GL_TRUE) {
-		if(!GLEW_ARB_texture_storage)
-			throw _ImmutableTexturesNotSupportedException();
-		GLuint levels = 1;
-		GLuint size = tga.Width() > tga.Height() ? tga.Width(): tga.Height();
-
-		while(size > 1 && genMipmaps == GL_TRUE) {
-			++levels;
-			size /= 2;
-		}
-
-		glTexStorage2D(GL_TEXTURE_2D, levels, internalFormat, tga.Width(), tga.Height());
-	}
-
-	// set data
-	glTexImage2D(GL_TEXTURE_2D,
-		         0,
-		         internalFormat,
-		         tga.Width(),
-		         tga.Height(),
-		         0,
-		         pixelFormat,
-		         GL_UNSIGNED_BYTE,
-		         tga.Pixels());
-
+                     GLboolean genMipmaps,
+                     GLboolean immutable) throw(FWException) {
+	// upload tga and gen mipmaps
+	_tex_tga_image2D(GL_TEXTURE_2D, filename, genMipmaps, immutable);
 	if(genMipmaps == GL_TRUE)
 		glGenerateMipmap(GL_TEXTURE_2D);
 }
+
+void tex_tga_cube_map(const std::string filenames[6],
+                      GLboolean genMipmaps,
+                      GLboolean immutable) throw(FWException) {
+	const GLenum side[5] = {GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+	                        GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
+	                        GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+	                        GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+	                        GL_TEXTURE_CUBE_MAP_NEGATIVE_Z};
+
+	_tex_tga_image2D(side[0],
+	                 filenames[0],
+	                 genMipmaps,
+	                 immutable);
+	for(GLint i=0; i<5; ++i) {
+		_tex_tga_image2D(side[i],
+		                 filenames[i+1],
+		                 GL_FALSE,
+		                 GL_FALSE);
+	}
+
+	if(genMipmaps == GL_TRUE)
+		glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////

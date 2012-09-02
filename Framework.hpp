@@ -27,10 +27,8 @@ namespace fw
 
 	// Check if power of two
 	bool is_power_of_two(GLuint number);
-
 	// Get next power of two
 	GLuint next_power_of_two(GLuint number);
-
 	// Get exponent of next power of two
 	GLuint next_power_of_two_exponent(GLuint number);
 
@@ -85,11 +83,33 @@ namespace fw
 	GLhalf float_to_half(GLfloat f);
 	GLfloat half_to_float(GLhalf h);
 
-	// Upload a TGA in a 2D texture
+
+	// Upload a TGA in a bound 2D texture
 	// immutable should be set to GL_FALSE on OpenGL3.3 (and older) hardware
 	void tex_tga_image2D(const std::string& filename,
 	                     GLboolean genMipmaps,
 	                     GLboolean immutable) throw(FWException);
+	// Upload 6 TGAs in a bound cubemap texture
+	// immutable should be set to GL_FALSE on OpenGL3.3 (and older) hardware
+	void tex_tga_cube_map(const std::string filenames[6],
+	                      GLboolean genMipmaps,
+	                      GLboolean immutable) throw(FWException);
+
+
+	// Upload a PNG in a bound 2D texture (using libpng)
+	// immutable should be set to GL_FALSE on OpenGL3.3 (and older) hardware
+	void tex_png_image2D(const std::string& filename,
+	                     GLboolean genMipmaps,
+	                     GLboolean immutable) throw(FWException);
+	// Upload 6 PNGs in a bound cubemap texture (using libpng)
+	// filenames should specify each face separated by a comma in the following
+	// order: positive_x, negative_x, positive_y, negative_y, 
+	// positive_z, negative_z
+	// immutable should be set to GL_FALSE on OpenGL3.3 (and older) hardware
+	void tex_png_cube_map(const std::string filenames[6],
+	                      GLboolean genMipmaps,
+	                      GLboolean immutable) throw(FWException);
+
 
 	// Render the frame using FSAA. Each pixel will be 
 	// generated from the last mip level of a sampleCnt x sampleCnt 
@@ -155,8 +175,7 @@ namespace fw
 	class Tga {
 	public:
 		// Constants
-		enum
-		{
+		enum {
 			PIXEL_FORMAT_UNKNOWN=0,
 			PIXEL_FORMAT_LUMINANCE,
 			PIXEL_FORMAT_LUMINANCE_ALPHA,
