@@ -19,7 +19,7 @@
 		</ProjectConfiguration>
 	</ItemGroup>
 	<PropertyGroup Label="Globals">
-		<ProjectGuid>{5163375E-0ED4-5DF0-00B6-515BD201516C}</ProjectGuid>
+		<ProjectGuid>{8B1118B0-D14B-8CCC-97D3-016E75F3ECCD}</ProjectGuid>
 		<RootNamespace>demo</RootNamespace>
 		<Keyword>Win32Proj</Keyword>
 	</PropertyGroup>
@@ -84,7 +84,7 @@
 	<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
 		<ClCompile>
 			<Optimization>Disabled</Optimization>
-			<AdditionalIncludeDirectories>include;core;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories>include;core;libpng;libpng\zlib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 			<PreprocessorDefinitions>DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
 			<MinimalRebuild>true</MinimalRebuild>
 			<BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -97,7 +97,7 @@
 		</ClCompile>
 		<ResourceCompile>
 			<PreprocessorDefinitions>DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-			<AdditionalIncludeDirectories>include;core;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories>include;core;libpng;libpng\zlib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 		</ResourceCompile>
 		<Link>
 			<OutputFile>$(OutDir)demo.exe</OutputFile>
@@ -112,7 +112,7 @@
 	<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">
 		<ClCompile>
 			<Optimization>Disabled</Optimization>
-			<AdditionalIncludeDirectories>include;core;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories>include;core;libpng;libpng\zlib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 			<PreprocessorDefinitions>DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
 			<MinimalRebuild>true</MinimalRebuild>
 			<BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -125,7 +125,7 @@
 		</ClCompile>
 		<ResourceCompile>
 			<PreprocessorDefinitions>DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-			<AdditionalIncludeDirectories>include;core;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories>include;core;libpng;libpng\zlib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 		</ResourceCompile>
 		<Link>
 			<AdditionalDependencies>glew32s.lib;freeglut.lib;AntTweakBar.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -141,7 +141,7 @@
 	<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
 		<ClCompile>
 			<Optimization>Full</Optimization>
-			<AdditionalIncludeDirectories>include;core;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories>include;core;libpng;libpng\zlib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 			<PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
 			<MinimalRebuild>false</MinimalRebuild>
 			<StringPooling>true</StringPooling>
@@ -153,7 +153,7 @@
 		</ClCompile>
 		<ResourceCompile>
 			<PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-			<AdditionalIncludeDirectories>include;core;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories>include;core;libpng;libpng\zlib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 		</ResourceCompile>
 		<Link>
 			<OutputFile>$(OutDir)demo.exe</OutputFile>
@@ -169,7 +169,7 @@
 	<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|Win32'">
 		<ClCompile>
 			<Optimization>Full</Optimization>
-			<AdditionalIncludeDirectories>include;core;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories>include;core;libpng;libpng\zlib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 			<PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
 			<MinimalRebuild>false</MinimalRebuild>
 			<StringPooling>true</StringPooling>
@@ -181,7 +181,7 @@
 		</ClCompile>
 		<ResourceCompile>
 			<PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-			<AdditionalIncludeDirectories>include;core;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+			<AdditionalIncludeDirectories>include;core;libpng;libpng\zlib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 		</ResourceCompile>
 		<Link>
 			<AdditionalDependencies>glew32s.lib;freeglut.lib;AntTweakBar.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -204,21 +204,75 @@
 		</ClCompile>
 		<ClCompile Include="main.cpp">
 		</ClCompile>
-		<ClCompile Include="core\Affine.cpp">
+		<ClCompile Include="core\Vector4.cpp">
 		</ClCompile>
 		<ClCompile Include="core\Matrix2x2.cpp">
-		</ClCompile>
-		<ClCompile Include="core\Vector2.cpp">
 		</ClCompile>
 		<ClCompile Include="core\Matrix4x4.cpp">
 		</ClCompile>
 		<ClCompile Include="core\Vector3.cpp">
 		</ClCompile>
-		<ClCompile Include="core\Projection.cpp">
+		<ClCompile Include="core\Vector2.cpp">
+		</ClCompile>
+		<ClCompile Include="core\Affine.cpp">
 		</ClCompile>
 		<ClCompile Include="core\Matrix3x3.cpp">
 		</ClCompile>
-		<ClCompile Include="core\Vector4.cpp">
+		<ClCompile Include="core\Projection.cpp">
+		</ClCompile>
+		<ClCompile Include="libpng\pngwutil.c">
+		</ClCompile>
+		<ClCompile Include="libpng\pngset.c">
+		</ClCompile>
+		<ClCompile Include="libpng\png.c">
+		</ClCompile>
+		<ClCompile Include="libpng\pngerror.c">
+		</ClCompile>
+		<ClCompile Include="libpng\pngrutil.c">
+		</ClCompile>
+		<ClCompile Include="libpng\pngtrans.c">
+		</ClCompile>
+		<ClCompile Include="libpng\pngmem.c">
+		</ClCompile>
+		<ClCompile Include="libpng\pngwtran.c">
+		</ClCompile>
+		<ClCompile Include="libpng\pngrtran.c">
+		</ClCompile>
+		<ClCompile Include="libpng\pngget.c">
+		</ClCompile>
+		<ClCompile Include="libpng\pngwio.c">
+		</ClCompile>
+		<ClCompile Include="libpng\pngwrite.c">
+		</ClCompile>
+		<ClCompile Include="libpng\pngvcrd.c">
+		</ClCompile>
+		<ClCompile Include="libpng\pngread.c">
+		</ClCompile>
+		<ClCompile Include="libpng\pnggccrd.c">
+		</ClCompile>
+		<ClCompile Include="libpng\pngrio.c">
+		</ClCompile>
+		<ClCompile Include="libpng\pngpread.c">
+		</ClCompile>
+		<ClCompile Include="libpng\zlib\adler32.c">
+		</ClCompile>
+		<ClCompile Include="libpng\zlib\uncompr.c">
+		</ClCompile>
+		<ClCompile Include="libpng\zlib\trees.c">
+		</ClCompile>
+		<ClCompile Include="libpng\zlib\inffast.c">
+		</ClCompile>
+		<ClCompile Include="libpng\zlib\zutil.c">
+		</ClCompile>
+		<ClCompile Include="libpng\zlib\crc32.c">
+		</ClCompile>
+		<ClCompile Include="libpng\zlib\deflate.c">
+		</ClCompile>
+		<ClCompile Include="libpng\zlib\inftrees.c">
+		</ClCompile>
+		<ClCompile Include="libpng\zlib\inflate.c">
+		</ClCompile>
+		<ClCompile Include="libpng\zlib\compress.c">
 		</ClCompile>
 	</ItemGroup>
 	<Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
