@@ -107,18 +107,6 @@ void on_init() {
 	for(GLuint i=0; i<PROGRAM_COUNT;++i)
 		programs[i] = glCreateProgram();
 
-	const std::string imgs[6]={"linux.tga","linux.tga","linux.tga",
-	"linux.tga","linux.tga","linux.tga"};
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, textures[TEXTURE_ONE]);
-		fw::tex_png_image2D("ps1k.png", GL_FALSE, GL_FALSE);
-//		fw::tex_tga_image2D({"linux.tga", GL_TRUE, GL_TRUE);
-//		fw::tex_tga_cube_map(imgs, GL_TRUE, GL_TRUE);
-
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, textures[TEXTURE_TWO]);
-		fw::tex_png_image2D("pst1k.png", GL_FALSE, GL_FALSE);
-
 #ifdef _ANT_ENABLE
 	// start ant
 	TwInit(TW_OPENGL_CORE, NULL);
@@ -195,10 +183,6 @@ void on_update() {
 
 	// clear back buffer
 	glClear(GL_COLOR_BUFFER_BIT);
-	
-//	glBegin(GL_POINTS);
-//		glVertex4f(0,0,0,1);
-//	glEnd();
 
 	// start ticking
 	deltaTimer.Start();
