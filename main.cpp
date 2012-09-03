@@ -51,6 +51,7 @@ enum {
 
 	// textures
 	TEXTURE_ONE = 0,
+	TEXTURE_TWO,
 	TEXTURE_COUNT,
 
 	// programs
@@ -96,6 +97,8 @@ void on_init() {
 	samplers     = new GLuint[SAMPLER_COUNT];
 	programs     = new GLuint[PROGRAM_COUNT];
 
+	fw::init_debug_output(std::cout);
+
 	// gen names
 	glGenBuffers(BUFFER_COUNT, buffers);
 	glGenVertexArrays(VERTEX_ARRAY_COUNT, vertexArrays);
@@ -103,6 +106,18 @@ void on_init() {
 	glGenSamplers(SAMPLER_COUNT, samplers);
 	for(GLuint i=0; i<PROGRAM_COUNT;++i)
 		programs[i] = glCreateProgram();
+
+	const std::string imgs[6]={"linux.tga","linux.tga","linux.tga",
+	"linux.tga","linux.tga","linux.tga"};
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, textures[TEXTURE_ONE]);
+		fw::tex_png_image2D("ps1k.png", GL_FALSE, GL_FALSE);
+//		fw::tex_tga_image2D({"linux.tga", GL_TRUE, GL_TRUE);
+//		fw::tex_tga_cube_map(imgs, GL_TRUE, GL_TRUE);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, textures[TEXTURE_TWO]);
+		fw::tex_png_image2D("pst1k.png", GL_FALSE, GL_FALSE);
 
 #ifdef _ANT_ENABLE
 	// start ant
@@ -180,6 +195,10 @@ void on_update() {
 
 	// clear back buffer
 	glClear(GL_COLOR_BUFFER_BIT);
+	
+//	glBegin(GL_POINTS);
+//		glVertex4f(0,0,0,1);
+//	glEnd();
 
 	// start ticking
 	deltaTimer.Start();
@@ -288,7 +307,7 @@ int main(int argc, char** argv) {
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
 	glutInitWindowSize(800, 600);
 	glutInitWindowPosition(0, 0);
-	glutCreateWindow("texture filtering");
+	glutCreateWindow("OpenGL");
 
 	// init glew
 	glewExperimental = GL_TRUE; // segfault on GenVertexArrays on Nvidia otherwise

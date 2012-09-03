@@ -14,9 +14,12 @@ solution "OpenGL"
 		kind "ConsoleApp" -- Shouldn't this be in configuration section ?
 		files { "*.hpp", "*.cpp" }
 		files { "core/*.cpp" }
+		files { "libpng/*.c", "libpng/zlib/*.c" }
 		includedirs {
 		"include",
-		"core"
+		"core",
+		"libpng",
+		"libpng/zlib"
 		}
 		objdir "obj"
 

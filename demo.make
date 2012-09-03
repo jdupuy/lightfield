@@ -24,7 +24,7 @@ ifeq ($(config),debug64)
   TARGETDIR  = .
   TARGET     = $(TARGETDIR)/demo
   DEFINES   += -DDEBUG
-  INCLUDES  += -Iinclude -Icore
+  INCLUDES  += -Iinclude -Icore -Ilibpng -Ilibpng/zlib
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -g -Wall -m64
   CXXFLAGS  += $(CFLAGS) 
@@ -46,7 +46,7 @@ ifeq ($(config),release64)
   TARGETDIR  = .
   TARGET     = $(TARGETDIR)/demo
   DEFINES   += -DNDEBUG
-  INCLUDES  += -Iinclude -Icore
+  INCLUDES  += -Iinclude -Icore -Ilibpng -Ilibpng/zlib
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -O2 -m64
   CXXFLAGS  += $(CFLAGS) 
@@ -68,7 +68,7 @@ ifeq ($(config),debug32)
   TARGETDIR  = .
   TARGET     = $(TARGETDIR)/demo
   DEFINES   += -DDEBUG
-  INCLUDES  += -Iinclude -Icore
+  INCLUDES  += -Iinclude -Icore -Ilibpng -Ilibpng/zlib
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -g -Wall -m32
   CXXFLAGS  += $(CFLAGS) 
@@ -90,7 +90,7 @@ ifeq ($(config),release32)
   TARGETDIR  = .
   TARGET     = $(TARGETDIR)/demo
   DEFINES   += -DNDEBUG
-  INCLUDES  += -Iinclude -Icore
+  INCLUDES  += -Iinclude -Icore -Ilibpng -Ilibpng/zlib
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) $(ARCH) -O2 -m32
   CXXFLAGS  += $(CFLAGS) 
@@ -110,14 +110,41 @@ endif
 OBJECTS := \
 	$(OBJDIR)/Framework.o \
 	$(OBJDIR)/main.o \
-	$(OBJDIR)/Affine.o \
+	$(OBJDIR)/Vector4.o \
 	$(OBJDIR)/Matrix2x2.o \
-	$(OBJDIR)/Vector2.o \
 	$(OBJDIR)/Matrix4x4.o \
 	$(OBJDIR)/Vector3.o \
-	$(OBJDIR)/Projection.o \
+	$(OBJDIR)/Vector2.o \
+	$(OBJDIR)/Affine.o \
 	$(OBJDIR)/Matrix3x3.o \
-	$(OBJDIR)/Vector4.o \
+	$(OBJDIR)/Projection.o \
+	$(OBJDIR)/pngwutil.o \
+	$(OBJDIR)/pngset.o \
+	$(OBJDIR)/png.o \
+	$(OBJDIR)/pngerror.o \
+	$(OBJDIR)/pngrutil.o \
+	$(OBJDIR)/pngtrans.o \
+	$(OBJDIR)/pngmem.o \
+	$(OBJDIR)/pngwtran.o \
+	$(OBJDIR)/pngrtran.o \
+	$(OBJDIR)/pngget.o \
+	$(OBJDIR)/pngwio.o \
+	$(OBJDIR)/pngwrite.o \
+	$(OBJDIR)/pngvcrd.o \
+	$(OBJDIR)/pngread.o \
+	$(OBJDIR)/pnggccrd.o \
+	$(OBJDIR)/pngrio.o \
+	$(OBJDIR)/pngpread.o \
+	$(OBJDIR)/adler32.o \
+	$(OBJDIR)/uncompr.o \
+	$(OBJDIR)/trees.o \
+	$(OBJDIR)/inffast.o \
+	$(OBJDIR)/zutil.o \
+	$(OBJDIR)/crc32.o \
+	$(OBJDIR)/deflate.o \
+	$(OBJDIR)/inftrees.o \
+	$(OBJDIR)/inflate.o \
+	$(OBJDIR)/compress.o \
 
 RESOURCES := \
 
@@ -184,13 +211,10 @@ $(OBJDIR)/Framework.o: Framework.cpp
 $(OBJDIR)/main.o: main.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/Affine.o: core/Affine.cpp
+$(OBJDIR)/Vector4.o: core/Vector4.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/Matrix2x2.o: core/Matrix2x2.cpp
-	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/Vector2.o: core/Vector2.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/Matrix4x4.o: core/Matrix4x4.cpp
@@ -199,14 +223,98 @@ $(OBJDIR)/Matrix4x4.o: core/Matrix4x4.cpp
 $(OBJDIR)/Vector3.o: core/Vector3.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/Projection.o: core/Projection.cpp
+$(OBJDIR)/Vector2.o: core/Vector2.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/Affine.o: core/Affine.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 $(OBJDIR)/Matrix3x3.o: core/Matrix3x3.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-$(OBJDIR)/Vector4.o: core/Vector4.cpp
+$(OBJDIR)/Projection.o: core/Projection.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pngwutil.o: libpng/pngwutil.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pngset.o: libpng/pngset.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/png.o: libpng/png.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pngerror.o: libpng/pngerror.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pngrutil.o: libpng/pngrutil.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pngtrans.o: libpng/pngtrans.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pngmem.o: libpng/pngmem.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pngwtran.o: libpng/pngwtran.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pngrtran.o: libpng/pngrtran.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pngget.o: libpng/pngget.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pngwio.o: libpng/pngwio.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pngwrite.o: libpng/pngwrite.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pngvcrd.o: libpng/pngvcrd.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pngread.o: libpng/pngread.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pnggccrd.o: libpng/pnggccrd.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pngrio.o: libpng/pngrio.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/pngpread.o: libpng/pngpread.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/adler32.o: libpng/zlib/adler32.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/uncompr.o: libpng/zlib/uncompr.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/trees.o: libpng/zlib/trees.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/inffast.o: libpng/zlib/inffast.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/zutil.o: libpng/zlib/zutil.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/crc32.o: libpng/zlib/crc32.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/deflate.o: libpng/zlib/deflate.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/inftrees.o: libpng/zlib/inftrees.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/inflate.o: libpng/zlib/inflate.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
+$(OBJDIR)/compress.o: libpng/zlib/compress.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(CFLAGS) -o "$@" -c "$<"
 
 -include $(OBJECTS:%.o=%.d)

@@ -95,7 +95,7 @@ namespace fw
 	                      GLboolean genMipmaps,
 	                      GLboolean immutable) throw(FWException);
 
-
+#ifndef _NO_PNG // removes dependencies on libpng
 	// Upload a PNG in a bound 2D texture (using libpng)
 	// immutable should be set to GL_FALSE on OpenGL3.3 (and older) hardware
 	void tex_png_image2D(const std::string& filename,
@@ -109,7 +109,7 @@ namespace fw
 	void tex_png_cube_map(const std::string filenames[6],
 	                      GLboolean genMipmaps,
 	                      GLboolean immutable) throw(FWException);
-
+#endif // _NO_PNG
 
 	// Render the frame using FSAA. Each pixel will be 
 	// generated from the last mip level of a sampleCnt x sampleCnt 
