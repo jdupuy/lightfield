@@ -730,8 +730,11 @@ GLuint next_power_of_two(GLuint number) {
 ////////////////////////////////////////////////////////////////////////////////
 // Next power of two exponent
 GLuint next_power_of_two_exponent(GLuint number) {
+	if(number==0)
+		return 1;
+
 	GLuint pot = next_power_of_two(number);
-	GLuint exp = 1;
+	GLuint exp = 0;
 	while(!(pot & 0x01)){
 		pot >>= 1;
 		++exp;
