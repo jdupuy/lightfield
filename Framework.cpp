@@ -506,13 +506,21 @@ static void _tex_tga_image2D(GLenum target,
 	}
 
 	// immutable
-	if(immutable == GL_TRUE)
+	if(immutable == GL_TRUE) {
 		_tex_storage2D(target,
 		               internalFormat,
 		               tga.Width(),
 		               tga.Height(),
 		               genMipmaps);
+		glTexSubImage2D(target,
+		                0, 0, 0,
+		                tga.Width(), tga.Height(),
+		                pixelFormat,
+		                GL_UNSIGNED_BYTE,
+		                tga.Pixels());
+	}
 
+	else
 	// set data
 	glTexImage2D(target,
 	             0,
