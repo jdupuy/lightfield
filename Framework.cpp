@@ -1139,6 +1139,7 @@ void tex_tga_cube_map(const std::string filenames[6],
 
 ////////////////////////////////////////////////////////////////////////////////
 // Upload a PNG image to a texture
+#ifndef _NO_PNG
 void tex_png_image2D(const std::string& filename,
                      GLboolean genMipmaps,
                      GLboolean immutable) throw(FWException) {
@@ -1171,7 +1172,7 @@ void tex_png_cube_map(const std::string filenames[6],
 	if(genMipmaps == GL_TRUE)
 		glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 }
-
+#endif // no png
 
 ////////////////////////////////////////////////////////////////////////////////
 // Half to float and float to half conversions
