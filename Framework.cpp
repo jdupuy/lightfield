@@ -1006,7 +1006,7 @@ GLushort pack_4ub_to_ushort_5_5_5_1(GLubyte r,
                                     GLubyte a) {
 	GLushort pack;
 	pack = (0xF800u & (r << 8)); // rrrr r--- ---- ----
-	pack|= (0x06C0u & (g << 3)); // rrrr rggg gg-- ----
+	pack|= (0x07C0u & (g << 3)); // rrrr rggg gg-- ----
 	pack|= (0x003Eu & (b >> 2)); // rrrr rggg ggbb bbb-
 	pack|= (0x0001u & (a >> 7)); // rrrr rggg ggbb bbba
 	return pack;
