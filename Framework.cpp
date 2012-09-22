@@ -928,35 +928,40 @@ GLint pack_4fv_to_int_10_10_10_2(const GLfloat *v) {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// RGB packing
+// RGB packing (save most significant bits)
 GLubyte pack_3ub_to_ubyte_3_3_2(GLubyte r,
 	                            GLubyte g,
 	                            GLubyte b) {
-	GLubyte pack = 0u;
-	return pack;
+	return (r & 0xEu) | (g >> 2 & 0x1Cu) | (b >> 6 & 0x03u); // rrrg ggbb
 }
 
 GLushort pack_3ub_to_ushort_4_4_4(GLubyte r,
 	                              GLubyte g,
 	                              GLubyte b) {
 	GLushort pack;
-	pack = 0x0F00u & ((r >> 4 & 0xF) << 8);
-	pack|= 0x00F0u & ((g >> 4 & 0xF) << 4);
-	pack|= 0x000Fu &  (b >> 4 & 0xF);
+	pack = (0x0F00u & (r << 4)); // ---- rrrr ---- ----
+	pack|= (0x00F0u & g);        // ---- rrrr gggg ----
+	pack|= (0x000Fu & (b >> 4)); // ---- rrrr gggg bbbb
 	return pack;
 }
 
 GLushort pack_3ub_to_ushort_5_5_5(GLubyte r,
 	                              GLubyte g,
 	                              GLubyte b) {
-	GLushort pack = 0;
+	GLushort pack;
+	pack = (0x7C00u & (r << 7)); // -rrr rr-- ---- ----
+	pack|= (0x03E0u & (g << 2)); // -rrr rrgg ggg- ----
+	pack|= (0x001Fu & (b >> 3)); // -rrr rrgg gggb bbbb
 	return pack;
 }
 
 GLushort pack_3ub_to_ushort_5_6_5(GLubyte r,
 	                              GLubyte g,
 	                              GLubyte b) {
-	GLushort pack = 0;
+	GLushort pack;
+	pack = (0xF800u & (r << 8)); // rrrr r--- ---- ----
+	pack|= (0x07E0u & (g << 3)); // rrrr rggg ggg- ----
+	pack|= (0x001Fu & (b >> 3)); // rrrr rggg gggb bbbb
 	return pack;
 }
 
@@ -976,6 +981,7 @@ GLushort pack_3ubv_to_ushort_5_6_5(const GLubyte *v) {
 	return pack_3ub_to_ushort_5_6_5(v[0],v[1],v[2]);
 }
 
+
 ////////////////////////////////////////////////////////////////////////////////
 // RGBA packing
 GLushort pack_4ub_to_ushort_4_4_4_4(GLubyte r,
@@ -983,10 +989,10 @@ GLushort pack_4ub_to_ushort_4_4_4_4(GLubyte r,
                                     GLubyte b,
                                     GLubyte a) {
 	GLushort pack;
-	pack = 0xF000u & ((r >> 4 & 0xF) << 12);
-	pack|= 0x0F00u & ((g >> 4 & 0xF) << 8);
-	pack|= 0x00F0u & ((b >> 4 & 0xF) << 4);
-	pack|= 0x000Fu &  (a >> 4 & 0xF);
+	pack = (0xF000u & (r << 8)); // rrrr ---- ---- ----
+	pack|= (0x0F00u & (g << 4)); // rrrr gggg ---- ----
+	pack|= (0x00F0u & b);        // rrrr gggg bbbb ----
+	pack|= (0x000Fu & (a >> 4)); // rrrr gggg bbbb aaaa
 	return pack;
 }
 
@@ -994,8 +1000,20 @@ GLushort pack_4ub_to_ushort_5_5_5_1(GLubyte r,
                                     GLubyte g,
                                     GLubyte b,
                                     GLubyte a) {
-	GLushort pack = 0u;
+	GLushort pack;
+	pack = (0xF800u & (r << 8)); // rrrr r--- ---- ----
+	pack|= (0x06C0u & (g << 3)); // rrrr rggg gg-- ----
+	pack|= (0x003Eu & (b >> 2)); // rrrr rggg ggbb bbb-
+	pack|= (0x0001u & (a >> 7)); // rrrr rggg ggbb bbba
 	return pack;
+}
+
+GLushort pack_4ubv_to_ushort_4_4_4_4(const GLubyte *v) {
+	return pack_4ub_to_ushort_4_4_4_4(v[0],v[1],v[2],v[3]);
+}
+
+GLushort pack_4ubv_to_ushort_5_5_5_1(const GLubyte *v) {
+	return pack_4ub_to_ushort_5_5_5_1(v[0],v[1],v[2],v[3]);
 }
 
 
