@@ -1,10 +1,14 @@
+////////////////////////////////////////////////////////////////////////////////
+// \author   Jonathan Dupuy
+//
+////////////////////////////////////////////////////////////////////////////////
+
 #include "Framework.hpp"
 
 #include <fstream> // std::ifstream
 #include <climits> // CHAR_BIT
 #include <cstring> // memcpy
 #include <sstream> // std::stringstream
-#include <iostream> // std::cerr
 #include <algorithm> // std::min std::max
 
 #ifdef _WIN32
@@ -928,7 +932,7 @@ GLint pack_4fv_to_int_10_10_10_2(const GLfloat *v) {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// RGB packing (save most significant bits)
+// RGB packing (saves most significant bits)
 GLubyte pack_3ub_to_ubyte_3_3_2(GLubyte r,
 	                            GLubyte g,
 	                            GLubyte b) {
@@ -983,7 +987,7 @@ GLushort pack_3ubv_to_ushort_5_6_5(const GLubyte *v) {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// RGBA packing
+// RGBA packing (saves most significant bits)
 GLushort pack_4ub_to_ushort_4_4_4_4(GLubyte r,
                                     GLubyte g,
                                     GLubyte b,
