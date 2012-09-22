@@ -884,7 +884,7 @@ GLuint pack_4f_to_uint_10_10_10_2(GLfloat x,
 	w = _clamp_float(w, 0.0f, 1.0f);
 
 	return (   (GLuint(x) /* << 0 */ & 0x3FFu)
-	         | (GLuint(y)   << 9    & 0xFFC00u)
+	         | (GLuint(y)   << 9     & 0xFFC00u)
 	         | (GLuint(z)   << 19    & 0x3FF00000u)
 	         | (GLuint(w)   << 29    & 0xC0000000u) );
 }
@@ -924,6 +924,78 @@ GLint pack_4f_to_int_10_10_10_2(GLfloat x,
 
 GLint pack_4fv_to_int_10_10_10_2(const GLfloat *v) {
 	return pack_4f_to_int_10_10_10_2(v[0], v[1], v[2], v[3]);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// RGB packing
+GLubyte pack_3ub_to_ubyte_3_3_2(GLubyte r,
+	                            GLubyte g,
+	                            GLubyte b) {
+	GLubyte pack = 0u;
+	return pack;
+}
+
+GLushort pack_3ub_to_ushort_4_4_4(GLubyte r,
+	                              GLubyte g,
+	                              GLubyte b) {
+	GLushort pack;
+	pack = 0x0F00u & ((r >> 4 & 0xF) << 8);
+	pack|= 0x00F0u & ((g >> 4 & 0xF) << 4);
+	pack|= 0x000Fu &  (b >> 4 & 0xF);
+	return pack;
+}
+
+GLushort pack_3ub_to_ushort_5_5_5(GLubyte r,
+	                              GLubyte g,
+	                              GLubyte b) {
+	GLushort pack = 0;
+	return pack;
+}
+
+GLushort pack_3ub_to_ushort_5_6_5(GLubyte r,
+	                              GLubyte g,
+	                              GLubyte b) {
+	GLushort pack = 0;
+	return pack;
+}
+
+GLubyte pack_3ubv_to_ubyte_3_3_2(const GLubyte *v) {
+	return pack_3ub_to_ubyte_3_3_2(v[0],v[1],v[2]);
+}
+
+GLushort pack_3ubv_to_ushort_4_4_4(const GLubyte *v) {
+	return pack_3ub_to_ushort_4_4_4(v[0],v[1],v[2]);
+}
+
+GLushort pack_3ubv_to_ushort_5_5_5(const GLubyte *v) {
+	return pack_3ub_to_ushort_5_5_5(v[0],v[1],v[2]);
+}
+
+GLushort pack_3ubv_to_ushort_5_6_5(const GLubyte *v) {
+	return pack_3ub_to_ushort_5_6_5(v[0],v[1],v[2]);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// RGBA packing
+GLushort pack_4ub_to_ushort_4_4_4_4(GLubyte r,
+                                    GLubyte g,
+                                    GLubyte b,
+                                    GLubyte a) {
+	GLushort pack;
+	pack = 0xF000u & ((r >> 4 & 0xF) << 12);
+	pack|= 0x0F00u & ((g >> 4 & 0xF) << 8);
+	pack|= 0x00F0u & ((b >> 4 & 0xF) << 4);
+	pack|= 0x000Fu &  (a >> 4 & 0xF);
+	return pack;
+}
+
+GLushort pack_4ub_to_ushort_5_5_5_1(GLubyte r,
+                                    GLubyte g,
+                                    GLubyte b,
+                                    GLubyte a) {
+	GLushort pack = 0u;
+	return pack;
 }
 
 
