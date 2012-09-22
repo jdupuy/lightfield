@@ -936,7 +936,7 @@ GLint pack_4fv_to_int_10_10_10_2(const GLfloat *v) {
 GLubyte pack_3ub_to_ubyte_3_3_2(GLubyte r,
 	                            GLubyte g,
 	                            GLubyte b) {
-	return (r & 0xEu) | (g >> 2 & 0x1Cu) | (b >> 6 & 0x03u); // rrrg ggbb
+	return (r & 0xE0u) | (g >> 3 & 0x1Cu) | (b >> 6 & 0x03u); // rrrg ggbb
 }
 
 GLushort pack_3ub_to_ushort_4_4_4(GLubyte r,
