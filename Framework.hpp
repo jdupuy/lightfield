@@ -58,6 +58,9 @@ namespace fw
 	                           GLsizei width,
 	                           GLsizei height) throw(FWException);
 
+	// Half to float conversion
+	GLhalf float_to_half(GLfloat f);
+	GLfloat half_to_float(GLhalf h);
 
 	// Pack four floats in an unsigned integer
 	// Floats are clamped in range [0,1]
@@ -79,9 +82,36 @@ namespace fw
 	GLint pack_4fv_to_int_10_10_10_2(const GLfloat *v);
 
 
-	// Half to float conversion
-	GLhalf float_to_half(GLfloat f);
-	GLfloat half_to_float(GLhalf h);
+	// Convert RGB8 to packed types.
+	GLubyte pack_3ub_to_ubyte_3_3_2(GLubyte r,
+	                                GLubyte g,
+	                                GLubyte b);
+	GLushort pack_3ub_to_ushort_4_4_4(GLubyte r,
+	                                  GLubyte g,
+	                                  GLubyte b);
+	GLushort pack_3ub_to_ushort_5_5_5(GLubyte r,
+	                                  GLubyte g,
+	                                  GLubyte b);
+	GLushort pack_3ub_to_ushort_5_6_5(GLubyte r,
+	                                  GLubyte g,
+	                                  GLubyte b);
+	GLubyte pack_3ubv_to_ubyte_3_3_2(const GLubyte *v);
+	GLushort pack_3ubv_to_ushort_4_4_4(const GLubyte *v);
+	GLushort pack_3ubv_to_ushort_5_5_5(const GLubyte *v);
+	GLushort pack_3ubv_to_ushort_5_6_5(const GLubyte *v);
+
+
+	// Convert RGBA8 to packed types.
+	GLushort pack_4ub_to_ushort_4_4_4_4(GLubyte r,
+	                                    GLubyte g,
+	                                    GLubyte b,
+	                                    GLubyte a);
+	GLushort pack_4ub_to_ushort_5_5_5_1(GLubyte r,
+	                                    GLubyte g,
+	                                    GLubyte b,
+	                                    GLubyte a);
+	GLushort pack_4ubv_to_ushort_4_4_4_4(const GLubyte *v);
+	GLushort pack_4ubv_to_ushort_5_5_5_1(const GLubyte *v);
 
 
 	// Upload a TGA in a bound 2D texture
