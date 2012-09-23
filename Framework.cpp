@@ -186,13 +186,6 @@ static GLushort _unpack_uint16(GLubyte msb, GLubyte lsb) {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// clamp float in range [min,max]
-static GLfloat _clamp_float(GLfloat x, GLfloat min, GLfloat max) {
-	return std::min( max, std::max(min, x) );
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
 // Get time
 static GLdouble _get_ticks() {
 #ifdef _WIN32
