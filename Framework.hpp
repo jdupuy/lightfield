@@ -63,7 +63,8 @@ namespace fw
 	GLfloat half_to_float(GLhalf h);
 
 
-	// Pack four normalized floats in an unsigned integer
+	// Pack four normalized floats in an unsigned integer using
+	// equation 2.1 from August 6, 2012 GL4.3 core profile specs.
 	// The values must be in range [0.f,1.f] (checked in debug mode)
 	// Memory layout: msb                                 lsb
 	//                wwzz zzzz zzzz yyyy yyyy yyxx xxxx xxxx
@@ -74,7 +75,8 @@ namespace fw
 	GLuint pack_4fv_to_uint_2_10_10_10_rev(const GLfloat *v);
 
 
-	// Pack four normalized floats in a signed integer
+	// Pack four normalized floats in a signed integer using
+	// equation 2.2 from August 6, 2012 GL4.3 core profile specs.
 	// The values must be in range [-1.f,1.f] (checked in debug mode)
 	// Memory layout: msb                                 lsb
 	//                wwzz zzzz zzzz yyyy yyyy yyxx xxxx xxxx
