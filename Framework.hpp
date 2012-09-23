@@ -34,7 +34,7 @@ namespace fw
 
 
 	// Build GLSL program
-	GLvoid build_glsl_program(GLuint program, 
+	GLvoid build_glsl_program(GLuint program,
 	                          const std::string& srcfile,
 	                          const std::string& options,
 	                          GLboolean link) throw(FWException);
@@ -62,24 +62,27 @@ namespace fw
 	GLhalf float_to_half(GLfloat f);
 	GLfloat half_to_float(GLhalf h);
 
-	// Pack four floats in an unsigned integer
-	// Floats are clamped in range [0,1]
-	// (follows GL4.2 specs)
-	GLuint pack_4f_to_uint_10_10_10_2(GLfloat x,
-	                                  GLfloat y,
-	                                  GLfloat z,
-	                                  GLfloat w);
-	GLuint pack_4fv_to_uint_10_10_10_2(const GLfloat *v);
+
+	// Pack four normalized floats in an unsigned integer
+	// The values must be in range [0.f,1.f] (checked in debug mode)
+	// Memory layout: msb                                 lsb
+	//                wwzz zzzz zzzz yyyy yyyy yyxx xxxx xxxx
+	GLuint pack_4f_to_uint_2_10_10_10_rev(GLfloat x,
+	                                      GLfloat y,
+	                                      GLfloat z,
+	                                      GLfloat w);
+	GLuint pack_4fv_to_uint_2_10_10_10_rev(const GLfloat *v);
 
 
-	// Pack four floats in a signed integer
-	// Floats are clamped in range [-1,1]
-	// (follows GL4.2 specs)
-	GLint pack_4f_to_int_10_10_10_2(GLfloat x,
-	                                GLfloat y,
-	                                GLfloat z,
-	                                GLfloat w);
-	GLint pack_4fv_to_int_10_10_10_2(const GLfloat *v);
+	// Pack four normalized floats in a signed integer
+	// The values must be in range [-1.f,1.f] (checked in debug mode)
+	// Memory layout: msb                                 lsb
+	//                wwzz zzzz zzzz yyyy yyyy yyxx xxxx xxxx
+	GLint pack_4f_to_int_2_10_10_10_rev(GLfloat x,
+	                                    GLfloat y,
+	                                    GLfloat z,
+	                                    GLfloat w);
+	GLint pack_4fv_to_int_2_10_10_10_rev(const GLfloat *v);
 
 
 	// Convert RGB8 to packed types.
