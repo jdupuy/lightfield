@@ -187,7 +187,7 @@ static GLushort _unpack_uint16(GLubyte msb, GLubyte lsb) {
 
 ////////////////////////////////////////////////////////////////////////////////
 // clamp float in range [min,max]
-static float _clamp_float(float x, float min, float max) {
+static GLfloat _clamp_float(GLfloat x, GLfloat min, GLfloat max) {
 	return std::min( max, std::max(min, x) );
 }
 
@@ -757,7 +757,7 @@ GLuint next_power_of_two_exponent(GLuint number) {
 
 ////////////////////////////////////////////////////////////////////////////////
 // build glsl program
-GLvoid build_glsl_program(GLuint program, 
+GLvoid build_glsl_program(GLuint program,
                           const std::string& srcfile,
                           const std::string& options,
                           GLboolean link ) throw(FWException) {
@@ -819,15 +819,15 @@ GLvoid build_glsl_program(GLuint program,
 		throw _ProgramBuildFailException(srcfile, e.what());
 	}
 
-	// Link program if asked
+	// Link program if requested
 	if(GL_TRUE == link) {
 		glLinkProgram(program);
 		// check link
 		GLint linkStatus = 0;
 		glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
 		if(GL_FALSE == linkStatus) {
-			GLchar logContent[512];
-			glGetProgramInfoLog(program, 512, NULL, logContent);
+			GLchar logContent[1024]; // 1kB
+			glGetProgramInfoLog(program, 1024, NULL, logContent);
 			throw _ProgramLinkFailException(srcfile, logContent);
 		}
 	}
@@ -876,58 +876,54 @@ GLvoid save_gl_back_buffer(GLint x,
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// Pack to uint10_10_10_2
-GLuint pack_4f_to_uint_10_10_10_2(GLfloat x,
-                                  GLfloat y,
-                                  GLfloat z,
-                                  GLfloat w) {
-	// clamp the values
-	x = _clamp_float(x, 0.0f, 1.0f)*1023.0f;
-	y = _clamp_float(y, 0.0f, 1.0f)*1023.0f;
-	z = _clamp_float(z, 0.0f, 1.0f)*1023.0f;
-	w = _clamp_float(w, 0.0f, 1.0f);
+// Pack to uint_2_10_10_10_rev
+GLuint pack_4f_to_uint_2_10_10_10_rev(GLfloat x,
+                                      GLfloat y,
+                                      GLfloat z,
+                                      GLfloat w) {
+	// clamp and expand
+	GLuint ix = x*1023.0f;
+	GLuint iy = y*1023.0f;
+	GLuint iz = z*1023.0f;
+	GLuint iw = w*3.0f;
 
-	return (   (GLuint(x) /* << 0 */ & 0x3FFu)
-	         | (GLuint(y)   << 9     & 0xFFC00u)
-	         | (GLuint(z)   << 19    & 0x3FF00000u)
-	         | (GLuint(w)   << 29    & 0xC0000000u) );
+	// pack
+	GLuint pack;                   // msb                                 lsb
+	pack = 0x000001FFu & ix;       // ---- ---- ---- ---- ---- --xx xxxx xxxx
+	pack|= 0x000FFC00u & iy << 10; // ---- ---- ---- yyyy yyyy yyxx xxxx xxxx
+	pack|= 0x1FF00000u & iz << 20; // --zz zzzz zzzz yyyy yyyy yyxx xxxx xxxx
+	pack|= 0xC0000000u & iw << 30; // wwzz zzzz zzzz yyyy yyyy yyxx xxxx xxxx
+	return pack;
 }
 
-GLuint pack_4fv_to_uint_10_10_10_2(const GLfloat *v) {
-	return pack_4f_to_uint_10_10_10_2(v[0], v[1], v[2], v[3]);
+GLuint pack_4fv_to_uint_2_10_10_10_rev(const GLfloat *v) {
+	return pack_4f_to_uint_2_10_10_10_rev(v[0], v[1], v[2], v[3]);
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// Pack to int10_10_10_2
-GLint pack_4f_to_int_10_10_10_2(GLfloat x,
-                                GLfloat y,
-                                GLfloat z,
-                                GLfloat w) {
-	// clamp the values
-	x = _clamp_float(x, -1.0f, 1.0f)*511.0f;
-	y = _clamp_float(y, -1.0f, 1.0f)*511.0f;
-	z = _clamp_float(z, -1.0f, 1.0f)*511.0f;
-	w = _clamp_float(w, -1.0f, 1.0f);
+// Pack to int_2_10_10_10_rev
+GLint pack_4f_to_int_2_10_10_10_rev(GLfloat x,
+                                    GLfloat y,
+                                    GLfloat z,
+                                    GLfloat w) {
+	// clamp and expand
+	GLint ix = x*511.0f;
+	GLint iy = y*511.0f;
+	GLint iz = z*511.0f;
+	GLint iw = w;
 
-	// save signs
-	GLint signx = x < 0.0f ? 1 : 0;
-	GLint signy = y < 0.0f ? 1 : 0;
-	GLint signz = z < 0.0f ? 1 : 0;
-	GLint signw = w < 0.0f ? 1 : 0;
-
-	return (   GLint(x)
-	         | (signx << 8 & 1)
-	         | (GLint(y) << 9)
-	         | (signy << 18 & 1)
-	         | (GLint(z) << 19)
-	         | (signz << 28 & 1)
-	         | (GLint(w) << 29)
-	         | (signw << 30 & 1) );
+	// pack
+	GLuint pack;                  // msb                                 lsb
+	pack = 0x000001FF & ix;       // ---- ---- ---- ---- ---- --xx xxxx xxxx
+	pack|= 0x000FFC00 & iy << 10; // ---- ---- ---- yyyy yyyy yyxx xxxx xxxx
+	pack|= 0x1FF00000 & iz << 20; // --zz zzzz zzzz yyyy yyyy yyxx xxxx xxxx
+	pack|= 0xC0000000 & iw << 30; // wwzz zzzz zzzz yyyy yyyy yyxx xxxx xxxx
+	return pack;
 }
 
-GLint pack_4fv_to_int_10_10_10_2(const GLfloat *v) {
-	return pack_4f_to_int_10_10_10_2(v[0], v[1], v[2], v[3]);
+GLint pack_4fv_to_int_2_10_10_10_rev(const GLfloat *v) {
+	return pack_4f_to_int_2_10_10_10_rev(v[0], v[1], v[2], v[3]);
 }
 
 
@@ -942,7 +938,7 @@ GLubyte pack_3ub_to_ubyte_3_3_2(GLubyte r,
 GLushort pack_3ub_to_ushort_4_4_4(GLubyte r,
 	                              GLubyte g,
 	                              GLubyte b) {
-	GLushort pack;
+	GLushort pack;               // msb             lsb
 	pack = (0x0F00u & (r << 4)); // ---- rrrr ---- ----
 	pack|= (0x00F0u & g);        // ---- rrrr gggg ----
 	pack|= (0x000Fu & (b >> 4)); // ---- rrrr gggg bbbb
@@ -952,7 +948,7 @@ GLushort pack_3ub_to_ushort_4_4_4(GLubyte r,
 GLushort pack_3ub_to_ushort_5_5_5(GLubyte r,
 	                              GLubyte g,
 	                              GLubyte b) {
-	GLushort pack;
+	GLushort pack;               // msb             lsb
 	pack = (0x7C00u & (r << 7)); // -rrr rr-- ---- ----
 	pack|= (0x03E0u & (g << 2)); // -rrr rrgg ggg- ----
 	pack|= (0x001Fu & (b >> 3)); // -rrr rrgg gggb bbbb
@@ -962,7 +958,7 @@ GLushort pack_3ub_to_ushort_5_5_5(GLubyte r,
 GLushort pack_3ub_to_ushort_5_6_5(GLubyte r,
 	                              GLubyte g,
 	                              GLubyte b) {
-	GLushort pack;
+	GLushort pack;               // msb             lsb
 	pack = (0xF800u & (r << 8)); // rrrr r--- ---- ----
 	pack|= (0x07E0u & (g << 3)); // rrrr rggg ggg- ----
 	pack|= (0x001Fu & (b >> 3)); // rrrr rggg gggb bbbb
@@ -992,7 +988,7 @@ GLushort pack_4ub_to_ushort_4_4_4_4(GLubyte r,
                                     GLubyte g,
                                     GLubyte b,
                                     GLubyte a) {
-	GLushort pack;
+	GLushort pack;               // msb             lsb
 	pack = (0xF000u & (r << 8)); // rrrr ---- ---- ----
 	pack|= (0x0F00u & (g << 4)); // rrrr gggg ---- ----
 	pack|= (0x00F0u & b);        // rrrr gggg bbbb ----
@@ -1004,7 +1000,7 @@ GLushort pack_4ub_to_ushort_5_5_5_1(GLubyte r,
                                     GLubyte g,
                                     GLubyte b,
                                     GLubyte a) {
-	GLushort pack;
+	GLushort pack;               // msb             lsb
 	pack = (0xF800u & (r << 8)); // rrrr r--- ---- ----
 	pack|= (0x07C0u & (g << 3)); // rrrr rggg gg-- ----
 	pack|= (0x003Eu & (b >> 2)); // rrrr rggg ggbb bbb-
