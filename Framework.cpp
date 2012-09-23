@@ -688,6 +688,9 @@ static void _tex_png_image2D(GLenum target,
 		               width,
 		               height,
 		               genMipmaps);
+	else
+		glTexImage2D(target, 0, internalFormat, width, height, 0,
+		             pixelFormat, pixelData, NULL);
 
 	// upload data
 	if(bitDepth==16) {
@@ -696,14 +699,14 @@ static void _tex_png_image2D(GLenum target,
 		glGetIntegerv(GL_UNPACK_SWAP_BYTES, &swapBytes);
 		glPixelStorei(GL_UNPACK_ALIGNMENT,2);
 		glPixelStorei(GL_UNPACK_SWAP_BYTES,GL_TRUE);
-		glTexImage2D(target, 0, internalFormat, width, height, 0,
-		             pixelFormat, pixelData, imageData);
+		glTexSubImage2D(target, 0, 0, 0, width, height,
+		                pixelFormat, pixelData, imageData);
 		glPixelStorei(GL_UNPACK_ALIGNMENT,align);
 		glPixelStorei(GL_UNPACK_SWAP_BYTES,swapBytes);
 	}
 	else
-		glTexImage2D(target, 0, internalFormat, width, height, 0,
-		             pixelFormat, pixelData, imageData);
+		glTexSubImage2D(target, 0, 0, 0, width, height,
+		                pixelFormat, pixelData, imageData);
 
 
 	// clean up
