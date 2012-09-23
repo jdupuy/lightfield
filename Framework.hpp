@@ -40,9 +40,13 @@ namespace fw
 	                          GLboolean link) throw(FWException);
 
 
-	// Check OpenGL errors (uses ARB_debug_output if available)
+	// Check OpenGL errors
 	// (throws an exception if an error is detected)
 	GLvoid check_gl_error() throw(FWException);
+
+
+	// Init debug output
+	// (throws an exception if the extension is not supported)
 	GLvoid init_debug_output(std::ostream& outputStream) throw(FWException);
 
 
