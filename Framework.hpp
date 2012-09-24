@@ -150,6 +150,7 @@ namespace fw
 	                      GLboolean immutable) throw(FWException);
 #endif // _NO_PNG
 
+
 	// Render the frame using FSAA. Each pixel will be 
 	// generated from the last mip level of a sampleCnt x sampleCnt 
 	// texture. This is a heavy process which should be used
@@ -166,7 +167,7 @@ namespace fw
 	                 GLsizei sampleCnt,
 	                 GLfloat *frustum, // frustum data
 	                 GLboolean perspective, // perspective of ortho matrix
-	                 void (*set_transforms_func)(float *perspectiveMatrix),
+	                 void (*set_transforms_func)(GLfloat *perspectiveMatrix),
 	                 void (*draw_func)() ) throw(FWException);
 
 
