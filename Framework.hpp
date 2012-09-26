@@ -13,8 +13,7 @@
 // offset for buffer objects
 #define FW_BUFFER_OFFSET(i)    ((char*)NULL + (i))
 
-namespace fw 
-{
+namespace fw {
 	// Framework exception
 	class FWException : public std::exception {
 	public:
@@ -151,6 +150,38 @@ namespace fw
 #endif // _NO_PNG
 
 
+	// Build meshes centered at (0,0,0).
+	// Three buffers must be bound: GL_ARRAY_BUFFER, GL_ELEMENT_ARRAY_BUFFER
+	// and GL_DRAW_INDIRECT_BUFFER.
+	// The vertex array must be built by the user, who also provides the 
+	// Vertex type which must have the following constructor:
+	// Vertex(GLfloat px, GLfloat py, GLfloat pz,
+	//        GLfloat nx, GLfloat ny, GLfloat nz,
+	//        GLfloat tx, GLfloat ty, GLfloat tz);
+	template<class Vertex>
+	void buffer_cylinder_data(GLfloat base,
+	                          GLfloat top,
+	                          GLfloat height,
+	                          GLint slices,
+	                          GLint stacks) throw(FWException);
+
+	template<class Vertex>
+	void buffer_sphere_data(GLfloat radius,
+	                        GLint slices,
+	                        GLint stacks) throw(FWException);
+
+	template<class Vertex>
+	void buffer_disk_data(GLfloat inner,
+	                      GLfloat outer,
+	                      GLint slices,
+	                      GLint loops) throw(FWException);
+
+	template<class Vertex>
+	void buffer_cube_data(GLfloat width,
+	                      GLfloat height,
+	                      GLfloat depth) throw(FWException);
+
+
 	// Render the frame using FSAA. Each pixel will be 
 	// generated from the last mip level of a sampleCnt x sampleCnt 
 	// texture. This is a heavy process which should be used
@@ -263,6 +294,9 @@ namespace fw
 
 
 } // namespace fw
+
+
+#include "Framework.inl" // mesh impl
 
 #endif
 
