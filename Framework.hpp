@@ -158,6 +158,8 @@ namespace fw {
 	// Vertex(GLfloat px, GLfloat py, GLfloat pz,
 	//        GLfloat nx, GLfloat ny, GLfloat nz,
 	//        GLfloat tx, GLfloat ty, GLfloat tz);
+	// Index format is unsigned short, if the amount of indexes exceeds is 
+	// uint16 limit, an exception is thrown.
 	template<class Vertex>
 	void buffer_cylinder_data(GLfloat base,
 	                          GLfloat top,
