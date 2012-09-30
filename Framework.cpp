@@ -173,16 +173,11 @@ public:
 
 #endif
 
+
 ////////////////////////////////////////////////////////////////////////////////
 // Local functions
 //
 ////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
-// extract uint16 from two uint8
-static GLushort _unpack_uint16(GLubyte msb, GLubyte lsb) {
-	return (static_cast<GLushort>(lsb) | static_cast<GLushort>(msb) << 8);
-}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -209,9 +204,9 @@ static GLdouble _get_ticks() {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Attach shader
-static void _attach_shader( GLuint program,
-                            GLenum shaderType,
-                            const GLchar* stringsrc) throw(FWException) {
+static void _attach_shader(GLuint program,
+                           GLenum shaderType,
+                           const GLchar* stringsrc) throw(FWException) {
 	const GLchar** string = &stringsrc;
 	GLuint shader = glCreateShader(shaderType);
 	glShaderSource(shader, 1, string, NULL);
@@ -278,7 +273,7 @@ static GLvoid _gl_debug_message_callback( GLenum source,
 #define near   frustum[4]
 #define far    frustum[5]
 
-static void _perspective_matrix(GLfloat *frustum, 
+static void _perspective_matrix(const GLfloat *frustum, 
                                 GLfloat *matrix) throw(FWException) {
 	if(left == right || bottom == top || near > far || near < 0.0f)
 		throw _InvalidPerspectiveException();
@@ -295,7 +290,7 @@ static void _perspective_matrix(GLfloat *frustum,
 	matrix[14] = -(twoNearVal*far) * oneOverFarMinusNear;
 }
 
-static void _ortho_matrix(GLfloat *frustum, 
+static void _ortho_matrix(const GLfloat *frustum, 
                           GLfloat *matrix) throw(FWException) {
 	if(left == right || bottom == top || near == far)
 		throw _InvalidOrthoException();
@@ -318,7 +313,7 @@ static void _ortho_matrix(GLfloat *frustum,
 #undef near
 #undef far
 
-static void _frustum_matrix(GLfloat *frustum, 
+static void _frustum_matrix(const GLfloat *frustum, 
                             bool perspective,
                             GLfloat *matrix) {
 	matrix[1]=matrix[2]
@@ -446,95 +441,30 @@ static GLvoid _save_gl_buffer(GLint x,
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// Generic tex storage
-static void _tex_storage2D(GLenum target,
-                           GLenum internalFormat,
-                           GLsizei width,
-                           GLsizei height,
-                           GLboolean genMipmaps) throw(FWException) {
-	if(!GLEW_ARB_texture_storage)
-		throw _ImmutableTexturesNotSupportedException();
-
-	GLsizei size   = std::max(width,height);
-	GLsizei levels = (genMipmaps==GL_FALSE) ? 1
-	                  : next_power_of_two_exponent(size);
-
-	// hack for cubemaps
-	if(target == GL_TEXTURE_CUBE_MAP_POSITIVE_X ||
-	   target == GL_TEXTURE_CUBE_MAP_NEGATIVE_X ||
-	   target == GL_TEXTURE_CUBE_MAP_POSITIVE_Y ||
-	   target == GL_TEXTURE_CUBE_MAP_NEGATIVE_Y ||
-	   target == GL_TEXTURE_CUBE_MAP_POSITIVE_Z ||
-	   target == GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
-		glTexStorage2D(GL_TEXTURE_CUBE_MAP,
-		               levels,
-		               internalFormat,
-		               width,
-		               height);
-	else
-		glTexStorage2D(target,
-		               levels,
-		               internalFormat,
-		               width,
-		               height);
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-// Upload TGA data
-static void _tex_tga_image2D(GLenum target,
-                             const std::string& filename,
-                             GLboolean genMipmaps,
-                             GLboolean immutable) {
-	Tga tga(filename); // load tga
-	GLenum internalFormat = GL_R8;
-	GLenum pixelFormat = GL_RED;
-	if(tga.PixelFormat() == fw::Tga::PIXEL_FORMAT_LUMINANCE_ALPHA) {
+// Extract TGA data
+static void _extract_tga_format(const Tga& tga,
+                                GLenum &internalFormat,
+                                GLenum &pixelFormat) {
+	internalFormat = GL_R8;
+	pixelFormat = GL_RED;
+	if(tga.PixelFormat() == Tga::PIXEL_FORMAT_LUMINANCE_ALPHA) {
 		internalFormat = GL_RG8;
 		pixelFormat = GL_RG;
 	}
-	else if(tga.PixelFormat() == fw::Tga::PIXEL_FORMAT_BGR) {
+	else if(tga.PixelFormat() == Tga::PIXEL_FORMAT_BGR) {
 		internalFormat = GL_RGB8;
 		pixelFormat = GL_BGR;
 	}
-	else if(tga.PixelFormat() == fw::Tga::PIXEL_FORMAT_BGRA) {
+	else if(tga.PixelFormat() == Tga::PIXEL_FORMAT_BGRA) {
 		internalFormat = GL_RGBA8;
 		pixelFormat = GL_BGRA;
 	}
-
-	// immutable
-	if(immutable == GL_TRUE) {
-		_tex_storage2D(target,
-		               internalFormat,
-		               tga.Width(),
-		               tga.Height(),
-		               genMipmaps);
-		glTexSubImage2D(target,
-		                0, 0, 0,
-		                tga.Width(), tga.Height(),
-		                pixelFormat,
-		                GL_UNSIGNED_BYTE,
-		                tga.Pixels());
-	}
-
-	else
-	// set data
-	glTexImage2D(target,
-	             0,
-	             internalFormat,
-	             tga.Width(),
-	             tga.Height(),
-	             0,
-	             pixelFormat,
-	             GL_UNSIGNED_BYTE,
-	             tga.Pixels());
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 // Upload PNG data (http://www.libpng.org/pub/png/libpng-1.2.5-manual.html)
 #ifndef _NO_PNG
-#define TEXTURE_LOAD_ERROR 0
 static void _tex_png_image2D(GLenum target,
                              const std::string& filename,
                              GLboolean genMipmaps,
@@ -675,12 +605,11 @@ static void _tex_png_image2D(GLenum target,
 	png_read_image(pngPtr, rowPointers);
 
 	// OpenGL texture generation
-	if(immutable == GL_TRUE)
-		_tex_storage2D(target,
-		               internalFormat,
-		               width,
-		               height,
-		               genMipmaps);
+	if(immutable == GL_TRUE) {
+		GLsizei size = std::max(width,height);
+		GLsizei levels = !genMipmaps ? 1 : next_power_of_two_exponent(size);
+		glTexStorage2D(target, levels, internalFormat, width, height);
+	}
 	else
 		glTexImage2D(target, 0, internalFormat, width, height, 0,
 		             pixelFormat, pixelData, NULL);
@@ -700,7 +629,6 @@ static void _tex_png_image2D(GLenum target,
 	else
 		glTexSubImage2D(target, 0, 0, 0, width, height,
 		                pixelFormat, pixelData, imageData);
-
 
 	// clean up
 	png_destroy_read_struct(&pngPtr, &infoPtr, &endPtr);
@@ -1192,8 +1120,42 @@ void render_fsaa(GLsizei width,
 void tex_tga_image2D(const std::string& filename,
                      GLboolean genMipmaps,
                      GLboolean immutable) throw(FWException) {
-	// upload tga and gen mipmaps
-	_tex_tga_image2D(GL_TEXTURE_2D, filename, genMipmaps, immutable);
+	if(!GLEW_ARB_texture_storage && immutable)
+		throw _ImmutableTexturesNotSupportedException();
+
+	Tga tga(filename);
+	GLsizei size = std::max(tga.Width(), tga.Height());
+	GLint levels = !genMipmaps ? 1 : next_power_of_two_exponent(size);
+	GLenum internalFormat, pixelFormat;
+	_extract_tga_format(tga, internalFormat, pixelFormat);
+
+	// allocate memory
+	if(immutable)
+		glTexStorage2D(GL_TEXTURE_2D, 
+		               levels,
+		               internalFormat,
+		               tga.Width(),
+		               tga.Height());
+	else
+		glTexImage2D(GL_TEXTURE_2D,
+		             0,
+		             internalFormat,
+		             tga.Width(),
+		             tga.Height(),
+		             0,
+		             pixelFormat,
+		             GL_UNSIGNED_BYTE,
+		             NULL);
+
+	// send data
+	glTexSubImage2D(GL_TEXTURE_2D,
+	                0,
+	                0, 0,
+	                tga.Width(), tga.Height(),
+	                pixelFormat,
+	                GL_UNSIGNED_BYTE,
+	                tga.Pixels());
+
 	if(genMipmaps == GL_TRUE)
 		glGenerateMipmap(GL_TEXTURE_2D);
 }
@@ -1201,25 +1163,115 @@ void tex_tga_image2D(const std::string& filename,
 void tex_tga_cube_map(const std::string filenames[6],
                       GLboolean genMipmaps,
                       GLboolean immutable) throw(FWException) {
-	const GLenum side[5] = {GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
-	                        GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
-	                        GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
-	                        GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
-	                        GL_TEXTURE_CUBE_MAP_NEGATIVE_Z};
+	if(!GLEW_ARB_texture_storage && immutable)
+		throw _ImmutableTexturesNotSupportedException();
 
-	_tex_tga_image2D(side[0],
-	                 filenames[0],
-	                 genMipmaps,
-	                 immutable);
-	for(GLint i=0; i<5; ++i) {
-		_tex_tga_image2D(side[i],
-		                 filenames[i+1],
-		                 GL_FALSE,
-		                 GL_FALSE);
+	// Load images
+	Tga xpos(filenames[0]);
+	Tga xneg(filenames[1]);
+	Tga ypos(filenames[2]);
+	Tga yneg(filenames[3]);
+	Tga zpos(filenames[4]);
+	Tga zneg(filenames[5]);
+	/// TODO check consistency
+
+	GLsizei size = std::max(xpos.Width(), xpos.Height());
+	GLint levels = !genMipmaps ? 1 : next_power_of_two_exponent(size);
+	GLenum internalFormat, pixelFormat;
+	_extract_tga_format(xpos, internalFormat, pixelFormat);
+
+	// allocate memory
+	if(immutable)
+		glTexStorage2D(GL_TEXTURE_CUBE_MAP,
+		               levels,
+		               internalFormat,
+		               xpos.Width(),
+		               xpos.Height());
+	else {
+		for(GLint i=0; i<6; ++i)
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X+i,
+			             0,
+			             internalFormat,
+			             xpos.Width(),
+			             xpos.Height(),
+			             0,
+			             pixelFormat,
+			             GL_UNSIGNED_BYTE,
+			             NULL);
 	}
+
+	// send data
+	const GLvoid* dataPtr[6] = {
+	xpos.Pixels(), xneg.Pixels(),
+	ypos.Pixels(), yneg.Pixels(),
+	zpos.Pixels(), zneg.Pixels() };
+	for(GLint i=0; i<6; ++i)
+		glTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i,
+		                0,
+		                0, 0,
+		                xpos.Width(), xpos.Height(),
+		                pixelFormat,
+		                GL_UNSIGNED_BYTE,
+		                dataPtr[i]);
 
 	if(genMipmaps == GL_TRUE)
 		glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+}
+
+void tex_tga_sprites_image3D(const std::vector<std::string>& filenames,
+	                         GLboolean genMipmaps,
+	                         GLboolean immutable) throw(FWException) {
+	if(!GLEW_ARB_texture_storage && immutable)
+		throw _ImmutableTexturesNotSupportedException();
+
+	// Load images
+	GLsizei frameCnt = (GLsizei)filenames.size();
+	Tga *tgas = new Tga[frameCnt];
+	for(GLsizei i=0; i<frameCnt; ++i) {
+		tgas[i].Load(filenames[i]);
+	}
+
+	GLsizei size = std::max(GLsizei(std::max(tgas[0].Width(),
+	                                         tgas[0].Height())),
+	                        frameCnt);
+	GLint levels = !genMipmaps ? 1 : next_power_of_two_exponent(size);
+	GLenum internalFormat, pixelFormat;
+	_extract_tga_format(tgas[0], internalFormat, pixelFormat);
+
+	// allocate memory
+	if(immutable)
+		glTexStorage3D(GL_TEXTURE_3D,
+		               levels,
+		               internalFormat,
+		               tgas[0].Width(),
+		               tgas[0].Height(),
+		               frameCnt);
+	else 
+		glTexImage3D(GL_TEXTURE_3D,
+		             0,
+		             internalFormat,
+		             tgas[0].Width(),
+		             tgas[0].Height(),
+		             frameCnt,
+		             0,
+		             pixelFormat,
+		             GL_UNSIGNED_BYTE,
+		             NULL);
+
+	// send data
+	for(GLint i=0; i<frameCnt; ++i)
+		glTexSubImage3D(GL_TEXTURE_3D,
+		                0,
+		                0, 0, frameCnt,
+		                tgas[i].Width(), tgas[i].Height(), 1,
+		                pixelFormat,
+		                GL_UNSIGNED_BYTE,
+		                tgas[i].Pixels());
+
+	if(genMipmaps == GL_TRUE)
+		glGenerateMipmap(GL_TEXTURE_3D);
+
+	delete[] tgas;
 }
 
 
@@ -1658,6 +1710,13 @@ public:
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// Extract uint16 from two uint8
+GLushort Tga::_UnpackUint16(GLubyte msb, GLubyte lsb) {
+	return (static_cast<GLushort>(lsb) | static_cast<GLushort>(msb) << 8);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
 // Flip horizontally
 void Tga::_Flip()
 {
@@ -1678,7 +1737,7 @@ void Tga::_LoadColourMapped( std::ifstream& fileStream,
                              GLchar* header )  throw(FWException)
 {
 	// set offset
-	GLushort offset = _unpack_uint16(header[4], header[3])+header[0];
+	GLushort offset = _UnpackUint16(header[4], header[3])+header[0];
 	fileStream.seekg(offset, std::ifstream::cur);
 
 	// check image descriptor byte
@@ -1691,7 +1750,7 @@ void Tga::_LoadColourMapped( std::ifstream& fileStream,
 		throw _TgaInvalidBppValueException();
 
 	// check cm size
-	GLuint colourMapSize = _unpack_uint16(header[5], header[6]);
+	GLuint colourMapSize = _UnpackUint16(header[5], header[6]);
 	if(colourMapSize < 1)
 		throw _TgaInvalidCmSizeException();
 
@@ -1706,7 +1765,7 @@ void Tga::_LoadColourMapped( std::ifstream& fileStream,
 	}
 	else if(mPixelFormat==2)
 	{
-		colourMapSize = _unpack_uint16(header[5], header[6]);
+		colourMapSize = _UnpackUint16(header[5], header[6]);
 		GLuint colourMapByteCnt = colourMapSize * 3;
 		colourMap = new GLubyte[colourMapByteCnt];
 
@@ -1757,8 +1816,8 @@ void Tga::_LoadLuminance( std::ifstream& fileStream,
 	// set offset
 	GLuint offset = header[0]
 	              + header[1]
-	              * ( _unpack_uint16(header[4], header[3])
-	              + _unpack_uint16(header[6], header[5] )
+	              * ( _UnpackUint16(header[4], header[3])
+	              + _UnpackUint16(header[6], header[5] )
 	              * (header[7]>>3));
 	fileStream.seekg(offset, std::ifstream::cur);
 
@@ -1787,8 +1846,8 @@ void Tga::_LoadUnmapped( std::ifstream& fileStream,
 	// set offset
 	GLuint offset = header[0]
 	              + header[1]
-	              * ( _unpack_uint16(header[4], header[3])
-	              + _unpack_uint16(header[6], header[5] )
+	              * ( _UnpackUint16(header[4], header[3])
+	              + _UnpackUint16(header[6], header[5] )
 	              * (header[7]>>3));
 	fileStream.seekg(offset, std::ifstream::cur);
 
@@ -1833,8 +1892,8 @@ void Tga::_LoadUnmappedRle( std::ifstream& fileStream,
 	// set offset
 	GLuint offset = header[0]
 	              + header[1]
-	              * ( _unpack_uint16(header[4], header[3])
-	              + _unpack_uint16(header[6], header[5] )
+	              * ( _UnpackUint16(header[4], header[3])
+	              + _UnpackUint16(header[6], header[5] )
 	              * (header[7]>>3));
 	fileStream.seekg(offset, std::ifstream::cur);
 
@@ -1926,7 +1985,7 @@ void Tga::_LoadColourMappedRle( std::ifstream& fileStream,
                                 GLchar* header) throw(FWException)
 {
 	// set offset
-	GLushort offset = _unpack_uint16(header[4], header[3])+header[0];
+	GLushort offset = _UnpackUint16(header[4], header[3])+header[0];
 	fileStream.seekg(offset, std::ifstream::cur);
 
 	// check image descriptor byte
@@ -1939,7 +1998,7 @@ void Tga::_LoadColourMappedRle( std::ifstream& fileStream,
 		throw _TgaInvalidBppValueException();
 
 	// check cm size
-	GLuint colourMapSize = _unpack_uint16(header[5], header[6]);
+	GLuint colourMapSize = _UnpackUint16(header[5], header[6]);
 	if(colourMapSize < 1)
 		throw _TgaInvalidCmSizeException();
 
@@ -1953,7 +2012,7 @@ void Tga::_LoadColourMappedRle( std::ifstream& fileStream,
 	}
 	else if(mPixelFormat==2)
 	{
-		colourMapSize = _unpack_uint16(header[5], header[6]);
+		colourMapSize = _UnpackUint16(header[5], header[6]);
 		GLuint colourMapByteCnt = colourMapSize * 3;
 		colourMap = new GLubyte[colourMapByteCnt];
 
@@ -2017,13 +2076,12 @@ void Tga::_LoadColourMappedRle( std::ifstream& fileStream,
 ////////////////////////////////////////////////////////////////////////////////
 // luminance images rle
 void Tga::_LoadLuminanceRle( std::ifstream& fileStream,
-                             GLchar* header) throw(FWException)
-{
+                             GLchar* header) throw(FWException) {
 	// set offset
 	GLuint offset = header[0]
 	              + header[1]
-	              *( _unpack_uint16(header[4], header[3])
-	              + _unpack_uint16(header[6], header[5])
+	              *( _UnpackUint16(header[4], header[3])
+	              + _UnpackUint16(header[6], header[5])
 	              * (header[7]>>3) );
 	fileStream.seekg(offset, std::ifstream::cur);
 
@@ -2074,9 +2132,8 @@ void Tga::_LoadLuminanceRle( std::ifstream& fileStream,
 // Default constructor
 Tga::Tga(): 
 mPixels(NULL),
-mWidth(0), mHeight(0),
-mPixelFormat(PIXEL_FORMAT_UNKNOWN)
-{
+mPixelFormat(PIXEL_FORMAT_UNKNOWN),
+mWidth(0), mHeight(0) {
 }
 
 
@@ -2084,25 +2141,22 @@ mPixelFormat(PIXEL_FORMAT_UNKNOWN)
 // Overloaded constructor
 Tga::Tga(const std::string& filename) throw(FWException):
 mPixels(NULL),
-mWidth(0), mHeight(0),
-mPixelFormat(PIXEL_FORMAT_UNKNOWN)
-{
+mPixelFormat(PIXEL_FORMAT_UNKNOWN),
+mWidth(0), mHeight(0) {
 	Load(filename);
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 // Destructor
-Tga::~Tga()
-{
+Tga::~Tga() {
 	_Clear();
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 // Load from file
-void Tga::Load(const std::string& filename) throw(FWException)
-{
+void Tga::Load(const std::string& filename) throw(FWException) {
 	// Clear memory if necessary
 	_Clear();
 
@@ -2116,16 +2170,15 @@ void Tga::Load(const std::string& filename) throw(FWException)
 	fileStream.read(reinterpret_cast<char*>(header), 18);
 
 	// get data
-	mWidth  = _unpack_uint16(header[13],header[12]);
-	mHeight = _unpack_uint16(header[15],header[14]);
+	mWidth  = _UnpackUint16(header[13],header[12]);
+	mHeight = _UnpackUint16(header[15],header[14]);
 
 	// check image dimensions and pixel data
 	if(0 == mWidth * mHeight)
 		throw _TgaLoaderException(filename, "Invalid TGA dimensions.");
 
 	// load data according to image type code
-	try
-	{
+	try {
 		if(header[2]==_TGA_TYPE_RGB)
 			_LoadUnmapped(fileStream, header);
 		else if(header[2]==_TGA_TYPE_CM)
@@ -2141,8 +2194,7 @@ void Tga::Load(const std::string& filename) throw(FWException)
 		else
 			throw _TgaLoaderException(filename, "Unknown TGA image type code.");
 	}
-	catch(FWException& e)
-	{
+	catch(FWException& e) {
 		throw _TgaLoaderException(filename, e.what());
 	}
 	catch(...)
@@ -2193,18 +2245,205 @@ void Tga::Save(const std::string& filename) throw(FWException)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Clear
-void Tga::_Clear()
-{
+void Tga::_Clear() {
 	delete[] mPixels;
 	mPixels = NULL;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Accessors
-GLushort Tga::Width()    const {return mWidth;}
-GLushort Tga::Height()   const {return mHeight;}
-GLint Tga::PixelFormat() const {return mPixelFormat;}
-GLubyte* Tga::Pixels()   const {return mPixels;}
+GLushort Tga::Width()     const {return mWidth;}
+GLushort Tga::Height()    const {return mHeight;}
+GLint Tga::PixelFormat()  const {return mPixelFormat;}
+GLint Tga::BitsPerPixel() const {return 8;}
+GLubyte* Tga::Pixels()    const {return mPixels;}
+
+
+#ifndef _NO_PNG
+////////////////////////////////////////////////////////////////////////////////
+// Default constructor
+Png::Png(): 
+mPixels(NULL),
+mPixelFormat(PIXEL_FORMAT_UNKNOWN),
+mWidth(0), mHeight(0) {
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Overloaded constructor
+Png::Png(const std::string& filename) throw(FWException):
+mPixels(NULL),
+mPixelFormat(PIXEL_FORMAT_UNKNOWN),
+mWidth(0), mHeight(0) {
+	Load(filename);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Clear
+void Png::_Clear() {
+	free(mPixels);
+	mPixels = NULL;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Destructor
+Png::~Png() {
+	_Clear();
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Load from file
+void Png::Load(const std::string& filename) throw(FWException) {
+	// Clear memory if necessary
+	_Clear();
+
+		// open file as binary
+	FILE* fileStream = fopen(filename.c_str(), "rb");
+	if(!fileStream) {
+		fclose(fileStream);
+		throw _FileNotFoundException(filename);
+	}
+
+	// read and check header
+	png_byte header[8];
+	fread(header, 1, 8, fileStream);
+	if(!png_check_sig(reinterpret_cast<png_byte*>(header), 8)) {
+		fclose(fileStream);
+		throw _PngInvalidHeaderException(filename);
+	}
+
+	// create png struct
+	png_structp pngPtr = 
+		png_create_read_struct(PNG_LIBPNG_VER_STRING, 
+		                       NULL, NULL, NULL);
+	if (!pngPtr) {
+		fclose(fileStream);
+		throw _PngCreateReadStructFailedException(filename);
+	}
+
+	// create png info struct
+	png_infop infoPtr = png_create_info_struct(pngPtr);
+	if (!infoPtr) {
+		png_destroy_read_struct(&pngPtr, (png_infopp) NULL, (png_infopp) NULL);
+		fclose(fileStream);
+		throw _PngCreateInfoStructFailedException(filename);
+	}
+
+	// create png info struct
+	png_infop endPtr = png_create_info_struct(pngPtr);
+	if (!endPtr) {
+		png_destroy_read_struct(&pngPtr, &infoPtr, (png_infopp) NULL);
+		fclose(fileStream);
+		throw _PngCreateInfoStructFailedException(filename);
+	}
+
+	// png error stuff
+	if (setjmp(png_jmpbuf(pngPtr))) {
+		png_destroy_read_struct(&pngPtr, &infoPtr, &endPtr);
+		fclose(fileStream);
+		throw _PngSetJmpFailedException(filename);
+	}
+
+	// read variables
+
+	// init png reading
+	png_init_io(pngPtr, fileStream);
+
+	// let libpng know you already read the first 8 bytes
+	png_set_sig_bytes(pngPtr, 8);
+
+	// read all the info up to the image data
+	png_read_info(pngPtr, infoPtr);
+
+	// get info about png
+	GLint colourType(0), rowbytes(0), bpp(0);
+	png_uint_32 w(0), h(0);
+	png_get_IHDR(pngPtr,
+	             infoPtr,
+	             &w,
+	             &h,
+	             &bpp,
+	             &colourType,
+	             NULL, NULL, NULL);
+	mWidth = w;
+	mHeight = h;
+	mBitsPerPixel = bpp;
+
+	// set bit depth
+	if(mBitsPerPixel!=8 || mBitsPerPixel!=16)
+		throw _PngUnsupportedBitDepthException(filename);
+
+	// set internalFormat and pixel format
+	if(colourType==PNG_COLOR_TYPE_GRAY) {
+		mPixelFormat = Png::PIXEL_FORMAT_LUMINANCE;
+	}
+	else if(colourType==PNG_COLOR_TYPE_GRAY_ALPHA) {
+		mPixelFormat = Png::PIXEL_FORMAT_LUMINANCE_ALPHA;
+	}
+	else if(colourType==PNG_COLOR_TYPE_RGB) {
+		mPixelFormat = Png::PIXEL_FORMAT_RGB;
+	}
+	else if(colourType==PNG_COLOR_TYPE_RGBA) {
+		mPixelFormat = Png::PIXEL_FORMAT_RGBA;
+	}
+	else {
+		png_destroy_read_struct(&pngPtr, &infoPtr, &endPtr);
+		fclose(fileStream);
+		throw _PngUnsupportedColourTypeException(filename);
+	}
+
+	// Update the png info struct.
+	png_read_update_info(pngPtr, infoPtr);
+
+	// Row size in bytes.
+	rowbytes = png_get_rowbytes(pngPtr, infoPtr);
+
+	// Allocate the image_data
+	mPixels = reinterpret_cast<png_byte*>(malloc(rowbytes*mHeight));
+	if(mPixels==NULL) {
+		png_destroy_read_struct(&pngPtr, &infoPtr, &endPtr);
+		fclose(fileStream);
+		throw _MemoryAllocationFailedException();
+	}
+
+	// row_pointers is for pointing to image_data 
+	// for reading the png with libpng
+	png_bytepp rowPointers 
+		= reinterpret_cast<png_bytepp>(malloc(rowbytes*sizeof(png_bytep)));
+	if(rowPointers==NULL) {
+		png_destroy_read_struct(&pngPtr, &infoPtr, &endPtr);
+		fclose(fileStream);
+		throw _MemoryAllocationFailedException();
+	}
+
+	// set the individual row_pointers to point at the correct offsets
+	// of image_data
+	for(png_uint_32 i = 0; i < mHeight; ++i)
+		rowPointers[mHeight-1-i] = mPixels+i*rowbytes;
+
+	// read the png into image_data through rowPointers
+	png_read_image(pngPtr, rowPointers);
+
+	// clean up
+	png_destroy_read_struct(&pngPtr, &infoPtr, &endPtr);
+	free(rowPointers);
+	fclose(fileStream);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Accessors
+GLushort Png::Width()     const {return mWidth;}
+GLushort Png::Height()    const {return mHeight;}
+GLint Png::PixelFormat()  const {return mPixelFormat;}
+GLint Png::BitsPerPixel() const {return mBitsPerPixel;}
+GLubyte* Png::Pixels()    const {return mPixels;}
+
+
+#endif
 
 } // namespace fw
 

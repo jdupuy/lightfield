@@ -8,6 +8,7 @@
 #define FRAMEWORK_HPP
 
 #include <string>
+#include <vector>
 #include "glew.hpp"
 
 // offset for buffer objects
@@ -60,6 +61,7 @@ namespace fw {
 	                           GLint y,
 	                           GLsizei width,
 	                           GLsizei height) throw(FWException);
+
 
 	// Half to float conversion
 	GLhalf float_to_half(GLfloat f);
@@ -122,31 +124,32 @@ namespace fw {
 	GLushort pack_4ubv_to_ushort_5_5_5_1(const GLubyte *v);
 
 
-	// Upload a TGA in a bound 2D texture
-	// immutable should be set to GL_FALSE on OpenGL3.3 (and older) hardware
+	// Upload a TGA to a texture bound as GL_TEXTURE_2D
 	void tex_tga_image2D(const std::string& filename,
 	                     GLboolean genMipmaps,
 	                     GLboolean immutable) throw(FWException);
-	// Upload 6 TGAs in a bound cubemap texture
-	// immutable should be set to GL_FALSE on OpenGL3.3 (and older) hardware
+	// Upload 6 TGAs to a texture bound as GL_TEXTURE_CUBE_MAP
 	void tex_tga_cube_map(const std::string filenames[6],
 	                      GLboolean genMipmaps,
 	                      GLboolean immutable) throw(FWException);
+	// Upload multiple TGAs to a texture bound as GL_TEXTURE_3D
+	void tex_tga_sprites_image3D(const std::vector<std::string>& filenames,
+	                             GLboolean genMipmaps,
+	                             GLboolean immutable) throw(FWException);
 
 #ifndef _NO_PNG // removes dependencies on libpng
-	// Upload a PNG in a bound 2D texture (using libpng)
-	// immutable should be set to GL_FALSE on OpenGL3.3 (and older) hardware
+	// Upload a PNG to a texture bound as GL_TEXTURE_2D (using libpng)
 	void tex_png_image2D(const std::string& filename,
 	                     GLboolean genMipmaps,
 	                     GLboolean immutable) throw(FWException);
-	// Upload 6 PNGs in a bound cubemap texture (using libpng)
-	// filenames should specify each face separated by a comma in the following
-	// order: positive_x, negative_x, positive_y, negative_y, 
-	// positive_z, negative_z
-	// immutable should be set to GL_FALSE on OpenGL3.3 (and older) hardware
+	// Upload 6 PNGs to a texture bound as GL_TEXTURE_CUBE_MAP (using libpng)
 	void tex_png_cube_map(const std::string filenames[6],
 	                      GLboolean genMipmaps,
 	                      GLboolean immutable) throw(FWException);
+	// Upload multiple PNGs to a texture bound as GL_TEXTURE_3D (using libpng)
+	void tex_tga_sprites_image3D(const std::vector<std::string>& filenames,
+	                             GLboolean genMipmaps,
+	                             GLboolean immutable) throw(FWException);
 #endif // _NO_PNG
 
 
@@ -270,6 +273,7 @@ namespace fw {
 		GLushort Width()       const;
 		GLushort Height()      const;
 		GLint    PixelFormat() const;
+		GLint    BitsPerPixel() const;
 		GLubyte* Pixels()      const; // data must be used for read only
 
 	private:
@@ -278,6 +282,7 @@ namespace fw {
 		Tga& operator=(const Tga& tga);
 
 		// Internal manipulation
+		GLushort _UnpackUint16(GLubyte msb, GLubyte lsb);
 		void _Flip();
 		void _LoadColourMapped(std::ifstream&, GLchar*)    throw(FWException);
 		void _LoadLuminance(std::ifstream&, GLchar*)       throw(FWException);
@@ -289,10 +294,56 @@ namespace fw {
 
 		// Members
 		GLubyte* mPixels;
+		GLint    mPixelFormat;
 		GLushort mWidth;
 		GLushort mHeight;
-		GLint    mPixelFormat;
 	};
+
+#ifndef _NO_PNG // removes dependencies on libpng
+	class Png {
+	public:
+		// Constants
+		enum {
+			PIXEL_FORMAT_UNKNOWN=0,
+			PIXEL_FORMAT_LUMINANCE,
+			PIXEL_FORMAT_LUMINANCE_ALPHA,
+			PIXEL_FORMAT_RGB,
+			PIXEL_FORMAT_RGBA
+		};
+
+		// Constructors / Destructor
+		Png();
+			// see Load
+		explicit Png(const std::string& filename) throw(FWException);
+		~Png();
+
+		// Manipulation
+			// load from a tga file
+		void Load(const std::string& filename) throw(FWException);
+
+		// Queries
+		GLushort Width()        const;
+		GLushort Height()       const;
+		GLint    PixelFormat()  const;
+		GLint    BitsPerPixel() const;
+		GLubyte* Pixels()       const; // data must be used for read only
+
+	private:
+		// Non copyable
+		Png(const Png& png);
+		Png& operator=(const Png& png);
+
+		// Internal manipulation
+		void _Clear();
+
+		// Members
+		GLubyte* mPixels;
+		GLint    mPixelFormat;
+		GLushort mWidth;
+		GLushort mHeight;
+		GLubyte  mBitsPerPixel;
+	};
+#endif
 
 
 } // namespace fw
