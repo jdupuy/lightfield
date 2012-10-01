@@ -476,13 +476,28 @@ void tex_img_image2D(const std::string& filename,
 		             NULL);
 
 	// send data
+	GLint align(0), swapBytes(0);
+	GLenum pixelData = GL_UNSIGNED_BYTE;
+	glGetIntegerv(GL_UNPACK_ALIGNMENT, &align);
+	glGetIntegerv(GL_UNPACK_SWAP_BYTES, &swapBytes);
+	if(img.BitsPerPixel()==16) {
+		glPixelStorei(GL_UNPACK_ALIGNMENT,2);
+		glPixelStorei(GL_UNPACK_SWAP_BYTES,GL_TRUE);
+		pixelData = GL_UNSIGNED_SHORT;
+	}
+	else {
+		glPixelStorei(GL_UNPACK_ALIGNMENT,1);
+		glPixelStorei(GL_UNPACK_SWAP_BYTES,GL_FALSE);
+	}
 	glTexSubImage2D(GL_TEXTURE_2D,
 	                0,
 	                0, 0,
 	                img.Width(), img.Height(),
 	                pixelFormat,
-	                GL_UNSIGNED_BYTE,
+	                pixelData,
 	                img.Pixels());
+	glPixelStorei(GL_UNPACK_ALIGNMENT,align);
+	glPixelStorei(GL_UNPACK_SWAP_BYTES,swapBytes);
 
 	if(genMipmaps == GL_TRUE)
 		glGenerateMipmap(GL_TEXTURE_2D);
@@ -536,6 +551,20 @@ void tex_img_cube_map(const std::string filenames[6],
 	xpos.Pixels(), xneg.Pixels(),
 	ypos.Pixels(), yneg.Pixels(),
 	zpos.Pixels(), zneg.Pixels() };
+	GLint align(0), swapBytes(0);
+	
+	GLenum pixelData = GL_UNSIGNED_BYTE;
+	glGetIntegerv(GL_UNPACK_ALIGNMENT, &align);
+	glGetIntegerv(GL_UNPACK_SWAP_BYTES, &swapBytes);
+	if(xpos.BitsPerPixel()==16) {
+		glPixelStorei(GL_UNPACK_ALIGNMENT,2);
+		glPixelStorei(GL_UNPACK_SWAP_BYTES,GL_TRUE);
+		pixelData = GL_UNSIGNED_SHORT;
+	}
+	else {
+		glPixelStorei(GL_UNPACK_ALIGNMENT,1);
+		glPixelStorei(GL_UNPACK_SWAP_BYTES,GL_FALSE);
+	}
 	for(GLint i=0; i<6; ++i)
 		glTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i,
 		                0,
@@ -544,6 +573,8 @@ void tex_img_cube_map(const std::string filenames[6],
 		                pixelFormat,
 		                GL_UNSIGNED_BYTE,
 		                dataPtr[i]);
+	glPixelStorei(GL_UNPACK_ALIGNMENT,align);
+	glPixelStorei(GL_UNPACK_SWAP_BYTES,swapBytes);
 
 	if(genMipmaps == GL_TRUE)
 		glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
@@ -593,6 +624,19 @@ void tex_img_sprites_image3D(const std::vector<std::string>& filenames,
 		             NULL);
 
 	// send data
+	GLint align(0), swapBytes(0);
+	GLenum pixelData = GL_UNSIGNED_BYTE;
+	glGetIntegerv(GL_UNPACK_ALIGNMENT, &align);
+	glGetIntegerv(GL_UNPACK_SWAP_BYTES, &swapBytes);
+	if(imgs[0].BitsPerPixel()==16) {
+		glPixelStorei(GL_UNPACK_ALIGNMENT,2);
+		glPixelStorei(GL_UNPACK_SWAP_BYTES,GL_TRUE);
+		pixelData = GL_UNSIGNED_SHORT;
+	}
+	else {
+		glPixelStorei(GL_UNPACK_ALIGNMENT,1);
+		glPixelStorei(GL_UNPACK_SWAP_BYTES,GL_FALSE);
+	}
 	for(GLint i=0; i<frameCnt; ++i)
 		glTexSubImage3D(GL_TEXTURE_3D,
 		                0,
@@ -601,6 +645,8 @@ void tex_img_sprites_image3D(const std::vector<std::string>& filenames,
 		                pixelFormat,
 		                GL_UNSIGNED_BYTE,
 		                imgs[i].Pixels());
+	glPixelStorei(GL_UNPACK_ALIGNMENT,align);
+	glPixelStorei(GL_UNPACK_SWAP_BYTES,swapBytes);
 
 	if(genMipmaps == GL_TRUE)
 		glGenerateMipmap(GL_TEXTURE_3D);
@@ -2133,6 +2179,7 @@ void Tga::_Clear() {
 GLushort Tga::Width()     const {return mWidth;}
 GLushort Tga::Height()    const {return mHeight;}
 GLint Tga::PixelFormat()  const {return mPixelFormat;}
+GLint Tga::BitsPerPixel() const {return 8;}
 GLubyte* Tga::Pixels()    const {return mPixels;}
 
 
@@ -2249,7 +2296,7 @@ void Png::Load(const std::string& filename) throw(FWException) {
 	mBitsPerPixel = bpp;
 
 	// set bit depth
-	if(mBitsPerPixel!=8 || mBitsPerPixel!=16)
+	if(mBitsPerPixel!=8 && mBitsPerPixel!=16)
 		throw _PngUnsupportedBitDepthException(filename);
 
 	// set internalFormat and pixel format

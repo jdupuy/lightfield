@@ -147,7 +147,7 @@ namespace fw {
 	                      GLboolean genMipmaps,
 	                      GLboolean immutable) throw(FWException);
 	// Upload multiple PNGs to a texture bound as GL_TEXTURE_3D (using libpng)
-	void tex_tga_sprites_image3D(const std::vector<std::string>& filenames,
+	void tex_png_sprites_image3D(const std::vector<std::string>& filenames,
 	                             GLboolean genMipmaps,
 	                             GLboolean immutable) throw(FWException);
 #endif // _NO_PNG
@@ -273,6 +273,7 @@ namespace fw {
 		GLushort Width()       const;
 		GLushort Height()      const;
 		GLint    PixelFormat() const;
+		GLint    BitsPerPixel() const;
 		GLubyte* Pixels()      const; // data must be used for read only
 
 	private:
