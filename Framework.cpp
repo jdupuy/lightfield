@@ -459,7 +459,7 @@ void tex_img_image2D(const std::string& filename,
 
 	// allocate memory
 	if(immutable)
-		glTexStorage2D(GL_TEXTURE_2D, 
+		glTexStorage2D(GL_TEXTURE_2D,
 		               levels,
 		               internalFormat,
 		               img.Width(),
@@ -1188,19 +1188,19 @@ void tex_tga_sprites_image3D(const std::vector<std::string>& filenames,
 static void _extract_png_format(const Png& png,
                                 GLenum &internalFormat,
                                 GLenum &pixelFormat) {
-	if(png.PixelFormat()==PNG_COLOR_TYPE_GRAY) {
+	if(png.PixelFormat()==Png::PIXEL_FORMAT_LUMINANCE) {
 		pixelFormat = GL_RED;
 		internalFormat = png.BitsPerPixel()==8 ? GL_R8 : GL_R16;
 	}
-	else if(png.PixelFormat()==PNG_COLOR_TYPE_GRAY_ALPHA) {
+	else if(png.PixelFormat()==Png::PIXEL_FORMAT_LUMINANCE_ALPHA) {
 		pixelFormat = GL_RG;
 		internalFormat = png.BitsPerPixel()==8 ? GL_RG8 : GL_RG16;
 	}
-	else if(png.PixelFormat()==PNG_COLOR_TYPE_RGB) {
+	else if(png.PixelFormat()==Png::PIXEL_FORMAT_RGB) {
 		pixelFormat = GL_RGB;
 		internalFormat = png.BitsPerPixel()==8 ? GL_RGB8 : GL_RGB16;
 	}
-	else if(png.PixelFormat()==PNG_COLOR_TYPE_RGBA) {
+	else if(png.PixelFormat()==Png::PIXEL_FORMAT_RGBA) {
 		pixelFormat = GL_RGBA;
 		internalFormat = png.BitsPerPixel()==8 ? GL_RGBA8 : GL_RGBA16;
 	}
