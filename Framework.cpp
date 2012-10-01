@@ -441,202 +441,173 @@ static GLvoid _save_gl_buffer(GLint x,
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// Extract TGA data
-static void _extract_tga_format(const Tga& tga,
-                                GLenum &internalFormat,
-                                GLenum &pixelFormat) {
-	internalFormat = GL_R8;
-	pixelFormat = GL_RED;
-	if(tga.PixelFormat() == Tga::PIXEL_FORMAT_LUMINANCE_ALPHA) {
-		internalFormat = GL_RG8;
-		pixelFormat = GL_RG;
-	}
-	else if(tga.PixelFormat() == Tga::PIXEL_FORMAT_BGR) {
-		internalFormat = GL_RGB8;
-		pixelFormat = GL_BGR;
-	}
-	else if(tga.PixelFormat() == Tga::PIXEL_FORMAT_BGRA) {
-		internalFormat = GL_RGBA8;
-		pixelFormat = GL_BGRA;
-	}
+// Generic texture uploads
+template <typename IMG_T>
+void tex_img_image2D(const std::string& filename,
+                     GLboolean genMipmaps,
+                     GLboolean immutable,
+                     void (*extract_format_func)
+                     (const IMG_T&, GLenum&, GLenum&)) throw(FWException) {
+	if(!GLEW_ARB_texture_storage && immutable)
+		throw _ImmutableTexturesNotSupportedException();
+
+	IMG_T img(filename);
+	GLsizei size = std::max(img.Width(), img.Height());
+	GLint levels = !genMipmaps ? 1 : next_power_of_two_exponent(size);
+	GLenum internalFormat, pixelFormat;
+	extract_format_func(img, internalFormat, pixelFormat);
+
+	// allocate memory
+	if(immutable)
+		glTexStorage2D(GL_TEXTURE_2D, 
+		               levels,
+		               internalFormat,
+		               img.Width(),
+		               img.Height());
+	else
+		glTexImage2D(GL_TEXTURE_2D,
+		             0,
+		             internalFormat,
+		             img.Width(),
+		             img.Height(),
+		             0,
+		             pixelFormat,
+		             GL_UNSIGNED_BYTE,
+		             NULL);
+
+	// send data
+	glTexSubImage2D(GL_TEXTURE_2D,
+	                0,
+	                0, 0,
+	                img.Width(), img.Height(),
+	                pixelFormat,
+	                GL_UNSIGNED_BYTE,
+	                img.Pixels());
+
+	if(genMipmaps == GL_TRUE)
+		glGenerateMipmap(GL_TEXTURE_2D);
 }
 
+template<typename IMG_T>
+void tex_img_cube_map(const std::string filenames[6],
+                      GLboolean genMipmaps,
+                      GLboolean immutable,
+                      void (*extract_format_func)
+                      (const IMG_T&, GLenum&, GLenum&)) throw(FWException) {
+	if(!GLEW_ARB_texture_storage && immutable)
+		throw _ImmutableTexturesNotSupportedException();
 
-////////////////////////////////////////////////////////////////////////////////
-// Upload PNG data (http://www.libpng.org/pub/png/libpng-1.2.5-manual.html)
-#ifndef _NO_PNG
-static void _tex_png_image2D(GLenum target,
-                             const std::string& filename,
-                             GLboolean genMipmaps,
-                             GLboolean immutable) {
-	// open file as binary
-	FILE* fileStream = fopen(filename.c_str(), "rb");
-	if(!fileStream) {
-		fclose(fileStream);
-		throw _FileNotFoundException(filename);
-	}
+	// Load images
+	IMG_T xpos(filenames[0]);
+	IMG_T xneg(filenames[1]);
+	IMG_T ypos(filenames[2]);
+	IMG_T yneg(filenames[3]);
+	IMG_T zpos(filenames[4]);
+	IMG_T zneg(filenames[5]);
+	/// TODO check consistency
 
-	// read and check header
-	png_byte header[8];
-	fread(header, 1, 8, fileStream);
-	if(!png_check_sig(reinterpret_cast<png_byte*>(header), 8)) {
-		fclose(fileStream);
-		throw _PngInvalidHeaderException(filename);
-	}
+	GLsizei size = std::max(xpos.Width(), xpos.Height());
+	GLint levels = !genMipmaps ? 1 : next_power_of_two_exponent(size);
+	GLenum internalFormat, pixelFormat;
+	extract_format_func(xpos, internalFormat, pixelFormat);
 
-	// create png struct
-	png_structp pngPtr = 
-		png_create_read_struct(PNG_LIBPNG_VER_STRING, 
-		                       NULL, NULL, NULL);
-	if (!pngPtr) {
-		fclose(fileStream);
-		throw _PngCreateReadStructFailedException(filename);
-	}
-
-	// create png info struct
-	png_infop infoPtr = png_create_info_struct(pngPtr);
-	if (!infoPtr) {
-		png_destroy_read_struct(&pngPtr, (png_infopp) NULL, (png_infopp) NULL);
-		fclose(fileStream);
-		throw _PngCreateInfoStructFailedException(filename);
-	}
-
-	// create png info struct
-	png_infop endPtr = png_create_info_struct(pngPtr);
-	if (!endPtr) {
-		png_destroy_read_struct(&pngPtr, &infoPtr, (png_infopp) NULL);
-		fclose(fileStream);
-		throw _PngCreateInfoStructFailedException(filename);
-	}
-
-	// png error stuff
-	if (setjmp(png_jmpbuf(pngPtr))) {
-		png_destroy_read_struct(&pngPtr, &infoPtr, &endPtr);
-		fclose(fileStream);
-		throw _PngSetJmpFailedException(filename);
-	}
-
-	// read variables
-	png_uint_32 width(0), height(0);
-	int bitDepth(0), colourType(0), rowbytes(0);
-	GLenum pixelFormat, pixelData, internalFormat;
-
-	// init png reading
-	png_init_io(pngPtr, fileStream);
-
-	// let libpng know you already read the first 8 bytes
-	png_set_sig_bytes(pngPtr, 8);
-
-	// read all the info up to the image data
-	png_read_info(pngPtr, infoPtr);
-
-	// get info about png
-	png_get_IHDR(pngPtr,
-	             infoPtr,
-	             &width,
-	             &height,
-	             &bitDepth,
-	             &colourType,
-	             NULL, NULL, NULL);
-
-	// set bit depth
-	if(bitDepth==8)
-		pixelData = GL_UNSIGNED_BYTE;
-	else if(bitDepth==16)
-		pixelData = GL_UNSIGNED_SHORT;
-	else
-		throw _PngUnsupportedBitDepthException(filename);
-
-	// set internalFormat and pixel format
-	if(colourType==PNG_COLOR_TYPE_GRAY) {
-		pixelFormat = GL_RED;
-		internalFormat = bitDepth==8 ? GL_R8 : GL_R16;
-	}
-	else if(colourType==PNG_COLOR_TYPE_GRAY_ALPHA) {
-		pixelFormat = GL_RG;
-		internalFormat = bitDepth==8 ? GL_RG8 : GL_RG16;
-	}
-	else if(colourType==PNG_COLOR_TYPE_RGB) {
-		pixelFormat = GL_RGB;
-		internalFormat = bitDepth==8 ? GL_RGB8 : GL_RGB16;
-	}
-	else if(colourType==PNG_COLOR_TYPE_RGBA) {
-		pixelFormat = GL_RGBA;
-		internalFormat = bitDepth==8 ? GL_RGBA8 : GL_RGBA16;
-	}
+	// allocate memory
+	if(immutable)
+		glTexStorage2D(GL_TEXTURE_CUBE_MAP,
+		               levels,
+		               internalFormat,
+		               xpos.Width(),
+		               xpos.Height());
 	else {
-		png_destroy_read_struct(&pngPtr, &infoPtr, &endPtr);
-		fclose(fileStream);
-		throw _PngUnsupportedColourTypeException(filename);
+		for(GLint i=0; i<6; ++i)
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X+i,
+			             0,
+			             internalFormat,
+			             xpos.Width(),
+			             xpos.Height(),
+			             0,
+			             pixelFormat,
+			             GL_UNSIGNED_BYTE,
+			             NULL);
 	}
 
-	// Update the png info struct.
-	png_read_update_info(pngPtr, infoPtr);
+	// send data
+	const GLvoid* dataPtr[6] = {
+	xpos.Pixels(), xneg.Pixels(),
+	ypos.Pixels(), yneg.Pixels(),
+	zpos.Pixels(), zneg.Pixels() };
+	for(GLint i=0; i<6; ++i)
+		glTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i,
+		                0,
+		                0, 0,
+		                xpos.Width(), xpos.Height(),
+		                pixelFormat,
+		                GL_UNSIGNED_BYTE,
+		                dataPtr[i]);
 
-	// Row size in bytes.
-	rowbytes = png_get_rowbytes(pngPtr, infoPtr);
-
-	// Allocate the image_data
-	png_byte *imageData = 
-		reinterpret_cast<png_byte*>(malloc(rowbytes*height));
-	if(imageData==NULL) {
-		png_destroy_read_struct(&pngPtr, &infoPtr, &endPtr);
-		fclose(fileStream);
-		throw _MemoryAllocationFailedException();
-	}
-
-	// row_pointers is for pointing to image_data 
-	// for reading the png with libpng
-	png_bytepp rowPointers 
-		= reinterpret_cast<png_bytepp>(malloc(rowbytes*sizeof(png_bytep)));
-	if(rowPointers==NULL) {
-		png_destroy_read_struct(&pngPtr, &infoPtr, &endPtr);
-		free(imageData);
-		fclose(fileStream);
-		throw _MemoryAllocationFailedException();
-	}
-
-	// set the individual row_pointers to point at the correct offsets
-	// of image_data
-	for(png_uint_32 i = 0; i < height; ++i)
-		rowPointers[height-1-i] = imageData+i*rowbytes;
-
-	// read the png into image_data through rowPointers
-	png_read_image(pngPtr, rowPointers);
-
-	// OpenGL texture generation
-	if(immutable == GL_TRUE) {
-		GLsizei size = std::max(width,height);
-		GLsizei levels = !genMipmaps ? 1 : next_power_of_two_exponent(size);
-		glTexStorage2D(target, levels, internalFormat, width, height);
-	}
-	else
-		glTexImage2D(target, 0, internalFormat, width, height, 0,
-		             pixelFormat, pixelData, NULL);
-
-	// upload data
-	if(bitDepth==16) {
-		GLint align(0), swapBytes(0);
-		glGetIntegerv(GL_UNPACK_ALIGNMENT, &align);
-		glGetIntegerv(GL_UNPACK_SWAP_BYTES, &swapBytes);
-		glPixelStorei(GL_UNPACK_ALIGNMENT,2);
-		glPixelStorei(GL_UNPACK_SWAP_BYTES,GL_TRUE);
-		glTexSubImage2D(target, 0, 0, 0, width, height,
-		                pixelFormat, pixelData, imageData);
-		glPixelStorei(GL_UNPACK_ALIGNMENT,align);
-		glPixelStorei(GL_UNPACK_SWAP_BYTES,swapBytes);
-	}
-	else
-		glTexSubImage2D(target, 0, 0, 0, width, height,
-		                pixelFormat, pixelData, imageData);
-
-	// clean up
-	png_destroy_read_struct(&pngPtr, &infoPtr, &endPtr);
-	free(imageData);
-	free(rowPointers);
-	fclose(fileStream);
+	if(genMipmaps == GL_TRUE)
+		glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 }
-#endif
+
+template<typename IMG_T>
+void tex_img_sprites_image3D(const std::vector<std::string>& filenames,
+	                         GLboolean genMipmaps,
+	                         GLboolean immutable,
+	                         void (*extract_format_func)
+	                         (const IMG_T&, GLenum&, GLenum&)) throw(FWException) {
+	if(!GLEW_ARB_texture_storage && immutable)
+		throw _ImmutableTexturesNotSupportedException();
+
+	// Load images
+	GLsizei frameCnt = (GLsizei)filenames.size();
+	IMG_T *imgs = new IMG_T[frameCnt];
+	for(GLsizei i=0; i<frameCnt; ++i) {
+		imgs[i].Load(filenames[i]);
+	}
+
+	GLsizei size = std::max(GLsizei(std::max(imgs[0].Width(),
+	                                         imgs[0].Height())),
+	                        frameCnt);
+	GLint levels = !genMipmaps ? 1 : next_power_of_two_exponent(size);
+	GLenum internalFormat, pixelFormat;
+	extract_format_func(imgs[0], internalFormat, pixelFormat);
+
+	// allocate memory
+	if(immutable)
+		glTexStorage3D(GL_TEXTURE_3D,
+		               levels,
+		               internalFormat,
+		               imgs[0].Width(),
+		               imgs[0].Height(),
+		               frameCnt);
+	else 
+		glTexImage3D(GL_TEXTURE_3D,
+		             0,
+		             internalFormat,
+		             imgs[0].Width(),
+		             imgs[0].Height(),
+		             frameCnt,
+		             0,
+		             pixelFormat,
+		             GL_UNSIGNED_BYTE,
+		             NULL);
+
+	// send data
+	for(GLint i=0; i<frameCnt; ++i)
+		glTexSubImage3D(GL_TEXTURE_3D,
+		                0,
+		                0, 0, frameCnt,
+		                imgs[i].Width(), imgs[i].Height(), 1,
+		                pixelFormat,
+		                GL_UNSIGNED_BYTE,
+		                imgs[i].Pixels());
+
+	if(genMipmaps == GL_TRUE)
+		glGenerateMipmap(GL_TEXTURE_3D);
+
+	delete[] imgs;
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1117,199 +1088,106 @@ void render_fsaa(GLsizei width,
 
 ////////////////////////////////////////////////////////////////////////////////
 // Upload a TGA image to a texture
+static void _extract_tga_format(const Tga& tga,
+                                GLenum &internalFormat,
+                                GLenum &pixelFormat) {
+	internalFormat = GL_R8;
+	pixelFormat = GL_RED;
+	if(tga.PixelFormat() == Tga::PIXEL_FORMAT_LUMINANCE_ALPHA) {
+		internalFormat = GL_RG8;
+		pixelFormat = GL_RG;
+	}
+	else if(tga.PixelFormat() == Tga::PIXEL_FORMAT_BGR) {
+		internalFormat = GL_RGB8;
+		pixelFormat = GL_BGR;
+	}
+	else if(tga.PixelFormat() == Tga::PIXEL_FORMAT_BGRA) {
+		internalFormat = GL_RGBA8;
+		pixelFormat = GL_BGRA;
+	}
+}
+
+
 void tex_tga_image2D(const std::string& filename,
                      GLboolean genMipmaps,
                      GLboolean immutable) throw(FWException) {
-	if(!GLEW_ARB_texture_storage && immutable)
-		throw _ImmutableTexturesNotSupportedException();
-
-	Tga tga(filename);
-	GLsizei size = std::max(tga.Width(), tga.Height());
-	GLint levels = !genMipmaps ? 1 : next_power_of_two_exponent(size);
-	GLenum internalFormat, pixelFormat;
-	_extract_tga_format(tga, internalFormat, pixelFormat);
-
-	// allocate memory
-	if(immutable)
-		glTexStorage2D(GL_TEXTURE_2D, 
-		               levels,
-		               internalFormat,
-		               tga.Width(),
-		               tga.Height());
-	else
-		glTexImage2D(GL_TEXTURE_2D,
-		             0,
-		             internalFormat,
-		             tga.Width(),
-		             tga.Height(),
-		             0,
-		             pixelFormat,
-		             GL_UNSIGNED_BYTE,
-		             NULL);
-
-	// send data
-	glTexSubImage2D(GL_TEXTURE_2D,
-	                0,
-	                0, 0,
-	                tga.Width(), tga.Height(),
-	                pixelFormat,
-	                GL_UNSIGNED_BYTE,
-	                tga.Pixels());
-
-	if(genMipmaps == GL_TRUE)
-		glGenerateMipmap(GL_TEXTURE_2D);
+	tex_img_image2D<Tga>(filename,
+	                     genMipmaps,
+	                     immutable,
+	                     &_extract_tga_format);
 }
 
 void tex_tga_cube_map(const std::string filenames[6],
                       GLboolean genMipmaps,
                       GLboolean immutable) throw(FWException) {
-	if(!GLEW_ARB_texture_storage && immutable)
-		throw _ImmutableTexturesNotSupportedException();
-
-	// Load images
-	Tga xpos(filenames[0]);
-	Tga xneg(filenames[1]);
-	Tga ypos(filenames[2]);
-	Tga yneg(filenames[3]);
-	Tga zpos(filenames[4]);
-	Tga zneg(filenames[5]);
-	/// TODO check consistency
-
-	GLsizei size = std::max(xpos.Width(), xpos.Height());
-	GLint levels = !genMipmaps ? 1 : next_power_of_two_exponent(size);
-	GLenum internalFormat, pixelFormat;
-	_extract_tga_format(xpos, internalFormat, pixelFormat);
-
-	// allocate memory
-	if(immutable)
-		glTexStorage2D(GL_TEXTURE_CUBE_MAP,
-		               levels,
-		               internalFormat,
-		               xpos.Width(),
-		               xpos.Height());
-	else {
-		for(GLint i=0; i<6; ++i)
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X+i,
-			             0,
-			             internalFormat,
-			             xpos.Width(),
-			             xpos.Height(),
-			             0,
-			             pixelFormat,
-			             GL_UNSIGNED_BYTE,
-			             NULL);
-	}
-
-	// send data
-	const GLvoid* dataPtr[6] = {
-	xpos.Pixels(), xneg.Pixels(),
-	ypos.Pixels(), yneg.Pixels(),
-	zpos.Pixels(), zneg.Pixels() };
-	for(GLint i=0; i<6; ++i)
-		glTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X+i,
-		                0,
-		                0, 0,
-		                xpos.Width(), xpos.Height(),
-		                pixelFormat,
-		                GL_UNSIGNED_BYTE,
-		                dataPtr[i]);
-
-	if(genMipmaps == GL_TRUE)
-		glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+	tex_img_cube_map<Tga>(filenames,
+	                      genMipmaps,
+	                      immutable,
+	                      &_extract_tga_format);
 }
 
 void tex_tga_sprites_image3D(const std::vector<std::string>& filenames,
 	                         GLboolean genMipmaps,
 	                         GLboolean immutable) throw(FWException) {
-	if(!GLEW_ARB_texture_storage && immutable)
-		throw _ImmutableTexturesNotSupportedException();
-
-	// Load images
-	GLsizei frameCnt = (GLsizei)filenames.size();
-	Tga *tgas = new Tga[frameCnt];
-	for(GLsizei i=0; i<frameCnt; ++i) {
-		tgas[i].Load(filenames[i]);
-	}
-
-	GLsizei size = std::max(GLsizei(std::max(tgas[0].Width(),
-	                                         tgas[0].Height())),
-	                        frameCnt);
-	GLint levels = !genMipmaps ? 1 : next_power_of_two_exponent(size);
-	GLenum internalFormat, pixelFormat;
-	_extract_tga_format(tgas[0], internalFormat, pixelFormat);
-
-	// allocate memory
-	if(immutable)
-		glTexStorage3D(GL_TEXTURE_3D,
-		               levels,
-		               internalFormat,
-		               tgas[0].Width(),
-		               tgas[0].Height(),
-		               frameCnt);
-	else 
-		glTexImage3D(GL_TEXTURE_3D,
-		             0,
-		             internalFormat,
-		             tgas[0].Width(),
-		             tgas[0].Height(),
-		             frameCnt,
-		             0,
-		             pixelFormat,
-		             GL_UNSIGNED_BYTE,
-		             NULL);
-
-	// send data
-	for(GLint i=0; i<frameCnt; ++i)
-		glTexSubImage3D(GL_TEXTURE_3D,
-		                0,
-		                0, 0, frameCnt,
-		                tgas[i].Width(), tgas[i].Height(), 1,
-		                pixelFormat,
-		                GL_UNSIGNED_BYTE,
-		                tgas[i].Pixels());
-
-	if(genMipmaps == GL_TRUE)
-		glGenerateMipmap(GL_TEXTURE_3D);
-
-	delete[] tgas;
+	tex_img_sprites_image3D<Tga>(filenames,
+	                             genMipmaps,
+	                             immutable,
+	                             &_extract_tga_format);
 }
 
 
+#ifndef _NO_PNG
 ////////////////////////////////////////////////////////////////////////////////
 // Upload a PNG image to a texture
-#ifndef _NO_PNG
+static void _extract_png_format(const Png& png,
+                                GLenum &internalFormat,
+                                GLenum &pixelFormat) {
+	if(png.PixelFormat()==PNG_COLOR_TYPE_GRAY) {
+		pixelFormat = GL_RED;
+		internalFormat = png.BitsPerPixel()==8 ? GL_R8 : GL_R16;
+	}
+	else if(png.PixelFormat()==PNG_COLOR_TYPE_GRAY_ALPHA) {
+		pixelFormat = GL_RG;
+		internalFormat = png.BitsPerPixel()==8 ? GL_RG8 : GL_RG16;
+	}
+	else if(png.PixelFormat()==PNG_COLOR_TYPE_RGB) {
+		pixelFormat = GL_RGB;
+		internalFormat = png.BitsPerPixel()==8 ? GL_RGB8 : GL_RGB16;
+	}
+	else if(png.PixelFormat()==PNG_COLOR_TYPE_RGBA) {
+		pixelFormat = GL_RGBA;
+		internalFormat = png.BitsPerPixel()==8 ? GL_RGBA8 : GL_RGBA16;
+	}
+}
+
 void tex_png_image2D(const std::string& filename,
                      GLboolean genMipmaps,
                      GLboolean immutable) throw(FWException) {
-	// upload tga and gen mipmaps
-	_tex_png_image2D(GL_TEXTURE_2D, filename, genMipmaps, immutable);
-	if(genMipmaps == GL_TRUE)
-		glGenerateMipmap(GL_TEXTURE_2D);
+	tex_img_image2D<Png>(filename,
+	                     genMipmaps,
+	                     immutable,
+	                     &_extract_png_format);
 }
 
 void tex_png_cube_map(const std::string filenames[6],
                       GLboolean genMipmaps,
                       GLboolean immutable) throw(FWException) {
-	const GLenum side[5] = {GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
-	                        GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
-	                        GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
-	                        GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
-	                        GL_TEXTURE_CUBE_MAP_NEGATIVE_Z};
-
-	_tex_png_image2D(side[0],
-	                 filenames[0],
-	                 genMipmaps,
-	                 immutable);
-	for(GLint i=0; i<5; ++i) {
-		_tex_png_image2D(side[i],
-		                 filenames[i+1],
-		                 GL_FALSE,
-		                 GL_FALSE);
-	}
-
-	if(genMipmaps == GL_TRUE)
-		glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+	tex_img_cube_map<Png>(filenames,
+	                      genMipmaps,
+	                      immutable,
+	                      _extract_png_format);
 }
+
+
+void tex_png_sprites_image3D(const std::vector<std::string>& filenames,
+	                         GLboolean genMipmaps,
+	                         GLboolean immutable) throw(FWException) {
+	tex_img_sprites_image3D<Png>(filenames,
+	                             genMipmaps,
+	                             immutable,
+	                             &_extract_png_format);
+}
+
 #endif // no png
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2255,7 +2133,6 @@ void Tga::_Clear() {
 GLushort Tga::Width()     const {return mWidth;}
 GLushort Tga::Height()    const {return mHeight;}
 GLint Tga::PixelFormat()  const {return mPixelFormat;}
-GLint Tga::BitsPerPixel() const {return 8;}
 GLubyte* Tga::Pixels()    const {return mPixels;}
 
 
