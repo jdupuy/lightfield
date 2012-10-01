@@ -2142,7 +2142,8 @@ GLubyte* Tga::Pixels()    const {return mPixels;}
 Png::Png(): 
 mPixels(NULL),
 mPixelFormat(PIXEL_FORMAT_UNKNOWN),
-mWidth(0), mHeight(0) {
+mWidth(0), mHeight(0), 
+mBitsPerPixel(0) {
 }
 
 
@@ -2151,7 +2152,8 @@ mWidth(0), mHeight(0) {
 Png::Png(const std::string& filename) throw(FWException):
 mPixels(NULL),
 mPixelFormat(PIXEL_FORMAT_UNKNOWN),
-mWidth(0), mHeight(0) {
+mWidth(0), mHeight(0),
+mBitsPerPixel(0) {
 	Load(filename);
 }
 
@@ -2180,7 +2182,6 @@ void Png::Load(const std::string& filename) throw(FWException) {
 		// open file as binary
 	FILE* fileStream = fopen(filename.c_str(), "rb");
 	if(!fileStream) {
-		fclose(fileStream);
 		throw _FileNotFoundException(filename);
 	}
 
@@ -2223,8 +2224,6 @@ void Png::Load(const std::string& filename) throw(FWException) {
 		fclose(fileStream);
 		throw _PngSetJmpFailedException(filename);
 	}
-
-	// read variables
 
 	// init png reading
 	png_init_io(pngPtr, fileStream);
