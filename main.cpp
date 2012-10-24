@@ -38,24 +38,27 @@ const float FOVY = PI*0.5f;
 
 enum {
 	// buffers
-	BUFFER_ONE = 0,
+	BUFFER_MESH_VERTICES = 0,
+	BUFFER_MESH_INDEXES,
+	BUFFER_MESH_DRAW,
 	BUFFER_COUNT,
 
 	// vertex arrays
-	VERTEX_ARRAY_ONE = 0,
+	VERTEX_ARRAY_MESH = 0,
+	VERTEX_ARRAY_LIGHFIELD,
 	VERTEX_ARRAY_COUNT,
 
 	// samplers
-	SAMPLER_ONE = 0,
+	SAMPLER_TRILINEAR = 0,
 	SAMPLER_COUNT,
 
 	// textures
-	TEXTURE_ONE = 0,
-	TEXTURE_TWO,
+	TEXTURE_LIGHFIELD = 0,
 	TEXTURE_COUNT,
 
 	// programs
-	PROGRAM_ONE = 0,
+	PROGRAM_MESH = 0,
+	PROGRAM_LIGHTFIELD,
 	PROGRAM_COUNT
 };
 
@@ -65,6 +68,8 @@ GLuint *vertexArrays = NULL;
 GLuint *textures     = NULL;
 GLuint *samplers     = NULL;
 GLuint *programs     = NULL;
+
+GLsizei lightfieldResolution = 256;
 
 bool mouseLeft  = false;
 bool mouseRight = false;
@@ -78,6 +83,64 @@ GLfloat speed = 0.0f; // app speed (in ms)
 // Functions
 //
 ////////////////////////////////////////////////////////////////////////////////
+
+
+void load_mesh() {
+	glBindBuffer(GL_ARRAY_BUFFER, buffers[BUFFER_MESH_VERTICES]);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[BUFFER_MESH_INDEXES]);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buffers[BUFFER_MESH_DRAW]);
+	
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+//	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0); // can be left active
+}
+
+void draw_mesh() {
+	glBindVertexArray(vertexArrays[VERTEX_ARRAY_MESH]);
+	glUseProgram(programs[PROGRAM_MESH]);
+		glDrawElementsIndirect(GL_TRIANGLES,GL_UNSIGNED_SHORT,0);
+}
+
+void build_lighfield() {
+	GLuint framebuffer, renderbuffer;
+	glGenFramebuffers(1, &framebuffer);
+	glGenRenderbuffers(1, &renderbuffer);
+
+	glBindTexture(GL_TEXTURE_2D_ARRAY, textures[TEXTURE_LIGHFIELD]);
+		glTexImage3D(GL_TEXTURE_2D_ARRAY, 
+		             0,
+		             GL_RGBA8,
+		             lightfieldResolution,
+		             lightfieldResolution,
+		             181,
+		             0,
+		             GL_RGBA,
+		             GL_UNSIGNED_BYTE,
+		             NULL);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+
+	glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
+	glRenderbufferStorage(GL_RENDERBUFFER,
+	                      GL_DEPTH_COMPONENT24,
+	                      lightfieldResolution,
+	                      lightfieldResolution);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER,
+		                          GL_DEPTH_ATTACHMENT,
+		                          GL_RENDERBUFFER,
+		                          renderbuffer);
+		glFramebufferTexture(GL_FRAMEBUFFER,
+		                     GL_COLOR_ATTACHMENT0,
+		                     textures[TEXTURE_LIGHFIELD],
+		                     0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glDeleteFramebuffers(1, &framebuffer);
+	glDeleteRenderbuffers(1, &renderbuffer);
+}
+
 
 #ifdef _ANT_ENABLE
 
@@ -106,6 +169,9 @@ void on_init() {
 	glGenSamplers(SAMPLER_COUNT, samplers);
 	for(GLuint i=0; i<PROGRAM_COUNT;++i)
 		programs[i] = glCreateProgram();
+
+	load_mesh();
+	build_lighfield();
 
 #ifdef _ANT_ENABLE
 	// start ant
@@ -277,8 +343,8 @@ void on_mouse_wheel(GLint wheel, GLint direction, GLint x, GLint y) {
 //
 ////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv) {
-	const GLuint CONTEXT_MAJOR = 3;
-	const GLuint CONTEXT_MINOR = 3;
+	const GLuint CONTEXT_MAJOR = 4;
+	const GLuint CONTEXT_MINOR = 2;
 
 	// init glut
 	glutInit(&argc, argv);
