@@ -223,9 +223,9 @@ Matrix4x4 Matrix4x4::Frustum(const float& left,
 {
 #ifndef NDEBUG
 	assert(   left != right
-	       || bottom != top
-	       || near < far
-	       || near > 0.0f);
+	       && bottom != top
+	       && near < far
+	       && near > 0.0f);
 #endif
 	// do some precomputations
 	float oneOverRightMinusLeft = 1.0f/(right - left);

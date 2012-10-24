@@ -70,7 +70,7 @@ GLuint *samplers     = NULL;
 GLuint *programs     = NULL;
 
 GLsizei lightfieldResolution = 256;
-GLsizei viewN = 9;
+GLsizei viewN = 3;
 
 GLint layer = 0;
 
@@ -167,6 +167,7 @@ void build_lighfield() {
 		                     textures[TEXTURE_LIGHFIELD],
 		                     0);
 
+	glViewport(0,0,lightfieldResolution,lightfieldResolution);
 	glDrawBuffer(GL_COLOR_ATTACHMENT0);
 
 	for(GLint i=-n; i<=n; ++i)
@@ -180,7 +181,7 @@ void build_lighfield() {
 			// compute mvp
 			Matrix4x4 rotation = Matrix4x4::RotationAboutZ(PI*0.5f)
 			                   * Matrix4x4::RotationAboutZ(-angle);
-			Matrix4x4 mvp = Matrix4x4::Ortho(-2,2,-2,2,-2,2)
+			Matrix4x4 mvp = Matrix4x4::Ortho(-1.5,1.5,-1.5,1.5,-1.5,1.5)
 			              * rotation.Inverse()
 			              * Matrix4x4::RotationAboutY(-PI*0.5f-alpha);
 			
@@ -196,16 +197,15 @@ void build_lighfield() {
 				                     GL_FALSE,
 				                     reinterpret_cast<const GLfloat*>
 				                     (&mvp));
-			
-			glClear(GL_DEPTH_BUFFER_BIT);
-			glViewport(0,0,lightfieldResolution,lightfieldResolution);
 
+			glClear(GL_DEPTH_BUFFER_BIT);
 			draw_mesh();
 
 			++current;
 		}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
 
 	glDeleteFramebuffers(1, &framebuffer);
 	glDeleteRenderbuffers(1, &renderbuffer);
@@ -286,7 +286,7 @@ void on_init() {
 
 	// Create a new bar
 	TwBar* menuBar = TwNewBar("menu");
-	TwDefine("menu size='220 170'");
+	TwDefine("menu size='200 170'");
 	TwDefine("menu position='0 0'");
 	TwDefine("menu alpha='255'");
 	TwDefine("menu valueswidth=85");
@@ -345,8 +345,6 @@ void on_clean() {
 void on_update() {
 	// Variables
 	static fw::Timer deltaTimer;
-	GLint windowWidth  = glutGet(GLUT_WINDOW_WIDTH);
-	GLint windowHeight = glutGet(GLUT_WINDOW_HEIGHT);
 
 	// stop timing and set delta
 	deltaTimer.Stop();
@@ -361,7 +359,7 @@ void on_update() {
 		               layer);
 
 
-	glViewport(0,0,windowWidth, windowHeight);
+	glViewport(200,0,lightfieldResolution, lightfieldResolution);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glUseProgram(programs[PROGRAM_LIGHTFIELD]);
@@ -437,12 +435,12 @@ void on_mouse_motion(GLint x, GLint y) {
 		return;
 #endif // _ANT_ENABLE
 
-	static GLint sMousePreviousX = 0;
-	static GLint sMousePreviousY = 0;
-	const GLint MOUSE_XREL = x-sMousePreviousX;
-	const GLint MOUSE_YREL = y-sMousePreviousY;
-	sMousePreviousX = x;
-	sMousePreviousY = y;
+//	static GLint sMousePreviousX = 0;
+//	static GLint sMousePreviousY = 0;
+//	const GLint MOUSE_XREL = x-sMousePreviousX;
+//	const GLint MOUSE_YREL = y-sMousePreviousY;
+//	sMousePreviousX = x;
+//	sMousePreviousY = y;
 }
 
 
@@ -473,7 +471,7 @@ int main(int argc, char** argv) {
 
 	// build window
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
-	glutInitWindowSize(lightfieldResolution, lightfieldResolution);
+	glutInitWindowSize(lightfieldResolution+200, lightfieldResolution);
 	glutInitWindowPosition(0, 0);
 	glutCreateWindow("OpenGL");
 
