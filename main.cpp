@@ -70,6 +70,7 @@ GLuint *samplers     = NULL;
 GLuint *programs     = NULL;
 
 GLsizei lightfieldResolution = 256;
+GLsizei viewN = 3;
 
 bool mouseLeft  = false;
 bool mouseRight = false;
@@ -86,16 +87,37 @@ GLfloat speed = 0.0f; // app speed (in ms)
 
 
 void load_mesh() {
+	// simple quad
+	const GLfloat vertices[] = { -1, -1, 0, 1,
+	                             +1, -1, 0, 1,
+	                             +1, +1, 0, 1,
+	                             -1, +1, 0, 1};
+	const GLushort indexes[] = {0,1,3,3,1,2};
+	const fw::DrawElementsIndirectCommand command 
+		= {6,1,0,0,0};
+
 	glBindBuffer(GL_ARRAY_BUFFER, buffers[BUFFER_MESH_VERTICES]);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[BUFFER_MESH_INDEXES]);
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buffers[BUFFER_MESH_DRAW]);
-	
+		glBufferData(GL_ARRAY_BUFFER,
+		             sizeof(vertices),
+		             vertices,
+		             GL_STATIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+		             sizeof(indexes),
+		             indexes,
+		             GL_STATIC_DRAW);
+		glBufferData(GL_DRAW_INDIRECT_BUFFER,
+		             sizeof(fw::DrawElementsIndirectCommand),
+		             &command,
+		             GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-//	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0); // can be left active
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 }
 
 void draw_mesh() {
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buffers[BUFFER_MESH_DRAW]);
 	glBindVertexArray(vertexArrays[VERTEX_ARRAY_MESH]);
 	glUseProgram(programs[PROGRAM_MESH]);
 		glDrawElementsIndirect(GL_TRIANGLES,GL_UNSIGNED_SHORT,0);
@@ -173,6 +195,20 @@ void on_init() {
 	load_mesh();
 	build_lighfield();
 
+	// build programs
+	fw::build_glsl_program(programs[PROGRAM_MESH],
+	                       "mesh.glsl",
+	                       "",
+	                       GL_TRUE);
+
+	// vertex arrays
+	glBindVertexArray(vertexArrays[VERTEX_ARRAY_MESH]);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[BUFFER_MESH_INDEXES]);
+		glBindBuffer(GL_ARRAY_BUFFER, buffers[BUFFER_MESH_VERTICES]);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0,4,GL_FLOAT,0,0,0);
+	glBindVertexArray(0);
+
 #ifdef _ANT_ENABLE
 	// start ant
 	TwInit(TW_OPENGL_CORE, NULL);
@@ -244,11 +280,11 @@ void on_update() {
 	speed = deltaTicks*1000.0f;
 #endif
 
-	// set viewport
-	glViewport(0,0,windowWidth, windowHeight);
 
-	// clear back buffer
-	glClear(GL_COLOR_BUFFER_BIT);
+	glViewport(0,0,windowWidth, windowHeight);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	draw_mesh();
 
 	// start ticking
 	deltaTimer.Start();
