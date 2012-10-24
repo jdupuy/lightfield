@@ -49,7 +49,7 @@ enum {
 	VERTEX_ARRAY_COUNT,
 
 	// samplers
-	SAMPLER_TRILINEAR = 0,
+	SAMPLER_LINEAR = 0,
 	SAMPLER_COUNT,
 
 	// textures
@@ -70,7 +70,9 @@ GLuint *samplers     = NULL;
 GLuint *programs     = NULL;
 
 GLsizei lightfieldResolution = 256;
-GLsizei viewN = 3;
+GLsizei viewN = 9;
+
+GLint layer = 0;
 
 bool mouseLeft  = false;
 bool mouseRight = false;
@@ -121,25 +123,32 @@ void draw_mesh() {
 	glBindVertexArray(vertexArrays[VERTEX_ARRAY_MESH]);
 	glUseProgram(programs[PROGRAM_MESH]);
 		glDrawElementsIndirect(GL_TRIANGLES,GL_UNSIGNED_SHORT,0);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 }
 
 void build_lighfield() {
 	GLuint framebuffer, renderbuffer;
+	GLint n = viewN;
+	GLint total = 2*n*(n+1)+1;
+	GLint current = 0;
+
 	glGenFramebuffers(1, &framebuffer);
 	glGenRenderbuffers(1, &renderbuffer);
 
+	glActiveTexture(GL_TEXTURE0+TEXTURE_LIGHFIELD);
+	std::vector<GLubyte> pixels(4*total*lightfieldResolution*lightfieldResolution, 0);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, textures[TEXTURE_LIGHFIELD]);
 		glTexImage3D(GL_TEXTURE_2D_ARRAY, 
 		             0,
 		             GL_RGBA8,
 		             lightfieldResolution,
 		             lightfieldResolution,
-		             181,
+		             total,
 		             0,
 		             GL_RGBA,
 		             GL_UNSIGNED_BYTE,
-		             NULL);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+		             &pixels[0]);
+
 
 	glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
 	glRenderbufferStorage(GL_RENDERBUFFER,
@@ -157,6 +166,45 @@ void build_lighfield() {
 		                     GL_COLOR_ATTACHMENT0,
 		                     textures[TEXTURE_LIGHFIELD],
 		                     0);
+
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+	for(GLint i=-n; i<=n; ++i)
+		for(GLint j=-n+abs(i);j<=n-abs(i);++j) {
+			GLfloat x = (i + j) / float(n);
+			GLfloat y = (j - i) / float(n);
+			GLfloat angle = (90.0f - std::max(fabs(x),fabs(y)) * 90.0f)*PI/180.0f;
+			GLfloat alpha = x == 0.0f && y == 0.0f ? 0.0f 
+				: atan2(y, x);
+			
+			// compute mvp
+			Matrix4x4 rotation = Matrix4x4::RotationAboutZ(PI*0.5f)
+			                   * Matrix4x4::RotationAboutZ(-angle);
+			Matrix4x4 mvp = Matrix4x4::Ortho(-2,2,-2,2,-2,2)
+			              * rotation.Inverse()
+			              * Matrix4x4::RotationAboutY(-PI*0.5f-alpha);
+			
+			// set uniforms
+			glProgramUniform1i(programs[PROGRAM_MESH],
+				glGetUniformLocation(programs[PROGRAM_MESH],
+				                     "uLayer"),
+				                     current);
+			glProgramUniformMatrix4fv(programs[PROGRAM_MESH],
+				glGetUniformLocation(programs[PROGRAM_MESH],
+				                     "uModelViewProjection"),
+				                     1, 
+				                     GL_FALSE,
+				                     reinterpret_cast<const GLfloat*>
+				                     (&mvp));
+			
+			glClear(GL_DEPTH_BUFFER_BIT);
+			glViewport(0,0,lightfieldResolution,lightfieldResolution);
+
+			draw_mesh();
+
+			++current;
+		}
+
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	glDeleteFramebuffers(1, &framebuffer);
@@ -192,8 +240,7 @@ void on_init() {
 	for(GLuint i=0; i<PROGRAM_COUNT;++i)
 		programs[i] = glCreateProgram();
 
-	load_mesh();
-	build_lighfield();
+	glEnable(GL_DEPTH_TEST);
 
 	// build programs
 	fw::build_glsl_program(programs[PROGRAM_MESH],
@@ -201,13 +248,35 @@ void on_init() {
 	                       "",
 	                       GL_TRUE);
 
+	fw::build_glsl_program(programs[PROGRAM_LIGHTFIELD],
+	                       "preview.glsl",
+	                       "",
+	                       GL_TRUE);
+	glProgramUniform1i(programs[PROGRAM_LIGHTFIELD],
+		glGetUniformLocation(programs[PROGRAM_LIGHTFIELD],
+		                     "sView"),
+		               TEXTURE_LIGHFIELD);
+
 	// vertex arrays
 	glBindVertexArray(vertexArrays[VERTEX_ARRAY_MESH]);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[BUFFER_MESH_INDEXES]);
 		glBindBuffer(GL_ARRAY_BUFFER, buffers[BUFFER_MESH_VERTICES]);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0,4,GL_FLOAT,0,0,0);
+	glBindVertexArray(vertexArrays[VERTEX_ARRAY_LIGHFIELD]);
 	glBindVertexArray(0);
+
+	load_mesh();
+	build_lighfield();
+
+	glSamplerParameteri(samplers[SAMPLER_LINEAR],
+                        GL_TEXTURE_MAG_FILTER,
+                        GL_LINEAR);
+	glSamplerParameteri(samplers[SAMPLER_LINEAR],
+                        GL_TEXTURE_MIN_FILTER,
+                        GL_LINEAR);
+
+	glBindSampler(TEXTURE_LIGHFIELD, samplers[SAMPLER_LINEAR]);
 
 #ifdef _ANT_ENABLE
 	// start ant
@@ -233,6 +302,12 @@ void on_init() {
 	             &toggle_fullscreen,
 	             NULL,
 	             "label='toggle fullscreen'");
+
+	TwAddVarRW(menuBar,
+	           "layer",
+	           TW_TYPE_INT32,
+	           &layer,
+	           "min=0 max=999");
 
 #endif // _ANT_ENABLE
 	fw::check_gl_error();
@@ -280,11 +355,18 @@ void on_update() {
 	speed = deltaTicks*1000.0f;
 #endif
 
+	glProgramUniform1f(programs[PROGRAM_LIGHTFIELD],
+		glGetUniformLocation(programs[PROGRAM_LIGHTFIELD],
+		                     "uLayer"),
+		               layer);
+
 
 	glViewport(0,0,windowWidth, windowHeight);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	draw_mesh();
+	glUseProgram(programs[PROGRAM_LIGHTFIELD]);
+	glBindVertexArray(vertexArrays[VERTEX_ARRAY_LIGHFIELD]);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 	// start ticking
 	deltaTimer.Start();
@@ -391,7 +473,7 @@ int main(int argc, char** argv) {
 
 	// build window
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
-	glutInitWindowSize(800, 600);
+	glutInitWindowSize(lightfieldResolution, lightfieldResolution);
 	glutInitWindowPosition(0, 0);
 	glutCreateWindow("OpenGL");
 
