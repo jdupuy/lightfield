@@ -51,7 +51,7 @@ enum {
 	VERTEX_ARRAY_COUNT,
 
 	// samplers
-	SAMPLER_LINEAR = 0,
+	SAMPLER_TRILINEAR = 0,
 	SAMPLER_COUNT,
 
 	// textures
@@ -157,7 +157,6 @@ void obj_buffer_data(const std::string& filename) {
 		         sizeof(fw::DrawElementsIndirectCommand),
 		         &command,
 		         GL_STATIC_DRAW);
-
 }
 
 
@@ -341,14 +340,14 @@ void on_init() {
 	load_mesh();
 	build_lighfield();
 
-	glSamplerParameteri(samplers[SAMPLER_LINEAR],
+	glSamplerParameteri(samplers[SAMPLER_TRILINEAR],
                         GL_TEXTURE_MAG_FILTER,
                         GL_LINEAR);
-	glSamplerParameteri(samplers[SAMPLER_LINEAR],
+	glSamplerParameteri(samplers[SAMPLER_TRILINEAR],
                         GL_TEXTURE_MIN_FILTER,
-                        GL_LINEAR);
+                        GL_LINEAR_MIPMAP_LINEAR);
 
-	glBindSampler(TEXTURE_LIGHFIELD, samplers[SAMPLER_LINEAR]);
+	glBindSampler(TEXTURE_LIGHFIELD, samplers[SAMPLER_TRILINEAR]);
 
 #ifdef _ANT_ENABLE
 	// start ant
@@ -385,7 +384,7 @@ void on_init() {
 	           "theta",
 	           TW_TYPE_FLOAT,
 	           &theta,
-	           "min=0 max=90 step=1");
+	           "min=0.001 max=90 step=1");
 
 	TwAddVarRW(menuBar,
 	           "phi",
@@ -476,7 +475,9 @@ void on_update() {
 	deltaTimer.Start();
 
 #ifdef _ANT_ENABLE
+	glBindSampler(TEXTURE_LIGHFIELD, 0);
 	TwDraw();
+	glBindSampler(TEXTURE_LIGHFIELD, samplers[SAMPLER_TRILINEAR]);
 #endif // _ANT_ENABLE
 
 	fw::check_gl_error();
