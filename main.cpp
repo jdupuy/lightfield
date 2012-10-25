@@ -59,6 +59,7 @@ enum {
 	// programs
 	PROGRAM_MESH = 0,
 	PROGRAM_LIGHTFIELD,
+	PROGRAM_PREVIEW,
 	PROGRAM_COUNT
 };
 
@@ -70,9 +71,10 @@ GLuint *samplers     = NULL;
 GLuint *programs     = NULL;
 
 GLsizei lightfieldResolution = 256;
-GLsizei viewN = 3;
-
-GLint layer = 0;
+GLsizei viewN = 9;
+GLint layer = 12;
+GLfloat theta = 0;
+GLfloat phi   = 0;
 
 bool mouseLeft  = false;
 bool mouseRight = false;
@@ -90,10 +92,10 @@ GLfloat speed = 0.0f; // app speed (in ms)
 
 void load_mesh() {
 	// simple quad
-	const GLfloat vertices[] = { -1, -1, 0, 1,
-	                             +1, -1, 0, 1,
-	                             +1, +1, 0, 1,
-	                             -1, +1, 0, 1};
+	const GLfloat vertices[] = { -1, 0, -1, 1,
+	                             +1, 0, -1, 1,
+	                             +1, 0, +1, 1,
+	                             -1, 0, +1, 1};
 	const GLushort indexes[] = {0,1,3,3,1,2};
 	const fw::DrawElementsIndirectCommand command 
 		= {6,1,0,0,0};
@@ -126,6 +128,7 @@ void draw_mesh() {
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 }
 
+
 void build_lighfield() {
 	GLuint framebuffer, renderbuffer;
 	GLint n = viewN;
@@ -148,7 +151,7 @@ void build_lighfield() {
 		             GL_RGBA,
 		             GL_UNSIGNED_BYTE,
 		             &pixels[0]);
-
+	pixels.clear();
 
 	glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
 	glRenderbufferStorage(GL_RENDERBUFFER,
@@ -162,13 +165,11 @@ void build_lighfield() {
 		                          GL_DEPTH_ATTACHMENT,
 		                          GL_RENDERBUFFER,
 		                          renderbuffer);
-		glFramebufferTexture(GL_FRAMEBUFFER,
-		                     GL_COLOR_ATTACHMENT0,
-		                     textures[TEXTURE_LIGHFIELD],
-		                     0);
+		glDrawBuffer(GL_COLOR_ATTACHMENT0);
 
 	glViewport(0,0,lightfieldResolution,lightfieldResolution);
-	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+	fw::check_framebuffer_status();
 
 	for(GLint i=-n; i<=n; ++i)
 		for(GLint j=-n+abs(i);j<=n-abs(i);++j) {
@@ -179,8 +180,8 @@ void build_lighfield() {
 				: atan2(y, x);
 			
 			// compute mvp
-			Matrix4x4 rotation = Matrix4x4::RotationAboutZ(PI*0.5f)
-			                   * Matrix4x4::RotationAboutZ(-angle);
+			Matrix4x4 rotation = /*Matrix4x4::RotationAboutX(PI*0.5f)
+			                   * */Matrix4x4::RotationAboutX(-angle);
 			Matrix4x4 mvp = Matrix4x4::Ortho(-1.5,1.5,-1.5,1.5,-1.5,1.5)
 			              * rotation.Inverse()
 			              * Matrix4x4::RotationAboutY(-PI*0.5f-alpha);
@@ -197,6 +198,12 @@ void build_lighfield() {
 				                     GL_FALSE,
 				                     reinterpret_cast<const GLfloat*>
 				                     (&mvp));
+
+			glFramebufferTextureLayer(GL_FRAMEBUFFER,
+		                              GL_COLOR_ATTACHMENT0,
+		                              textures[TEXTURE_LIGHFIELD],
+		                              0,
+		                              current);
 
 			glClear(GL_DEPTH_BUFFER_BIT);
 			draw_mesh();
@@ -247,15 +254,27 @@ void on_init() {
 	                       "mesh.glsl",
 	                       "",
 	                       GL_TRUE);
-
-	fw::build_glsl_program(programs[PROGRAM_LIGHTFIELD],
+	fw::build_glsl_program(programs[PROGRAM_PREVIEW],
 	                       "preview.glsl",
 	                       "",
 	                       GL_TRUE);
+	fw::build_glsl_program(programs[PROGRAM_LIGHTFIELD],
+	                       "lightfield.glsl",
+	                       "",
+	                       GL_TRUE);
+
+	glProgramUniform1i(programs[PROGRAM_PREVIEW],
+		glGetUniformLocation(programs[PROGRAM_PREVIEW],
+		                     "sView"),
+		               TEXTURE_LIGHFIELD);
 	glProgramUniform1i(programs[PROGRAM_LIGHTFIELD],
 		glGetUniformLocation(programs[PROGRAM_LIGHTFIELD],
 		                     "sView"),
 		               TEXTURE_LIGHFIELD);
+	glProgramUniform1i(programs[PROGRAM_LIGHTFIELD],
+		glGetUniformLocation(programs[PROGRAM_LIGHTFIELD],
+		                     "uViewCount"),
+		               viewN);
 
 	// vertex arrays
 	glBindVertexArray(vertexArrays[VERTEX_ARRAY_MESH]);
@@ -309,6 +328,18 @@ void on_init() {
 	           &layer,
 	           "min=0 max=999");
 
+	TwAddVarRW(menuBar,
+	           "theta",
+	           TW_TYPE_FLOAT,
+	           &theta,
+	           "min=0 max=90 step=1");
+
+	TwAddVarRW(menuBar,
+	           "phi",
+	           TW_TYPE_FLOAT,
+	           &phi,
+	           "min=0 max=360 step=1");
+
 #endif // _ANT_ENABLE
 	fw::check_gl_error();
 }
@@ -353,17 +384,39 @@ void on_update() {
 	speed = deltaTicks*1000.0f;
 #endif
 
-	glProgramUniform1f(programs[PROGRAM_LIGHTFIELD],
-		glGetUniformLocation(programs[PROGRAM_LIGHTFIELD],
+	glProgramUniform1f(programs[PROGRAM_PREVIEW],
+		glGetUniformLocation(programs[PROGRAM_PREVIEW],
 		                     "uLayer"),
 		               layer);
 
+	float thetaR = theta * PI / 180.0f;
+	float phiR   = phi   * PI / 180.0f;
+	float cosTheta = cos(thetaR);
+	float cosPhi   = cos(phiR);
+	float sinTheta = sin(thetaR);
+	float sinPhi   = sin(phiR);
 
-	glViewport(200,0,lightfieldResolution, lightfieldResolution);
+	glProgramUniform3f(programs[PROGRAM_LIGHTFIELD],
+		glGetUniformLocation(programs[PROGRAM_LIGHTFIELD],
+		                     "uViewDir"),
+		               sinTheta*cosPhi,
+		               cosTheta,
+		               sinTheta*sinPhi);
+
+
+//	std::cout << sinTheta*sinPhi << ' '
+//		      << cosTheta     << ' '
+//		      << sinTheta*cosPhi << std::endl;
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glViewport(200,lightfieldResolution,lightfieldResolution, lightfieldResolution);
 
 	glUseProgram(programs[PROGRAM_LIGHTFIELD]);
 	glBindVertexArray(vertexArrays[VERTEX_ARRAY_LIGHFIELD]);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	glViewport(200,0,lightfieldResolution, lightfieldResolution);
+	glUseProgram(programs[PROGRAM_PREVIEW]);
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 	// start ticking
@@ -471,7 +524,7 @@ int main(int argc, char** argv) {
 
 	// build window
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
-	glutInitWindowSize(lightfieldResolution+200, lightfieldResolution);
+	glutInitWindowSize(lightfieldResolution+200, lightfieldResolution*2);
 	glutInitWindowPosition(0, 0);
 	glutCreateWindow("OpenGL");
 

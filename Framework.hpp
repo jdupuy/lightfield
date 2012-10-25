@@ -45,6 +45,11 @@ namespace fw {
 	GLvoid check_gl_error() throw(FWException);
 
 
+	// Check framebuffer status
+	// (throws an exception if the active framebuffer is not framebuffer complete)
+	GLvoid check_framebuffer_status() throw(FWException);
+
+
 	// Init debug output
 	// (throws an exception if the extension is not supported)
 	GLvoid init_debug_output(std::ostream& outputStream) throw(FWException);
