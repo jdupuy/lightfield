@@ -1,6 +1,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 // \author   Jonathan Dupuy
 //
+// \TODO add texcoord advection with view
+// \TODO better navigation (use mouse, set, theta and phi to read only)
+// \TODO compute optimal volume
+// \TODO store correct depth, opacity and other
+// 
 ////////////////////////////////////////////////////////////////////////////////
 
 // gui
@@ -35,7 +40,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // Constants
-const float PI   = 3.14159265;
+#define PI 3.14159265
+#define SQRT_2 1.414213562
+
 const float FOVY = PI*0.5f;
 
 enum {
@@ -92,12 +99,11 @@ GLfloat speed = 0.0f; // app speed (in ms)
 ////////////////////////////////////////////////////////////////////////////////
 
 void obj_buffer_data(const std::string& filename) {
-	// Load model (sibnek's cathedral)
 	fw::DrawElementsIndirectCommand command;
 	GLMmodel *model = glmReadOBJ(filename.c_str());
 	if(model == NULL)
 		throw(std::runtime_error("failed to load OBJ model"));
-	glmUnitize(model);
+	glmUnitize(model); // unit scale
 
 	// GL model
 	std::vector<GLfloat>     vertices(model->numvertices*6*2,0.0f);
@@ -232,9 +238,9 @@ void build_lighfield() {
 			// compute mvp
 			Matrix4x4 rotation = /*Matrix4x4::RotationAboutX(PI*0.5f)
 			                   * */Matrix4x4::RotationAboutX(-angle);
-			Matrix4x4 mvp = Matrix4x4::Ortho(-1.5,1.5,-1.5,1.5,-1.5,1.5)
+			Matrix4x4 mvp = Matrix4x4::Ortho(-SQRT_2,SQRT_2,-SQRT_2,SQRT_2,-SQRT_2,SQRT_2)
 			              * rotation.Inverse()
-			              * Matrix4x4::RotationAboutY(-PI*0.5f-alpha);
+			              * Matrix4x4::RotationAboutY(-alpha);
 			
 			// set uniforms
 			glProgramUniform1i(programs[PROGRAM_MESH],
@@ -461,13 +467,13 @@ void on_update() {
 //		      << sinTheta*cosPhi << std::endl;
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glViewport(200,lightfieldResolution,lightfieldResolution, lightfieldResolution);
+	glViewport(300,lightfieldResolution,lightfieldResolution, lightfieldResolution);
 
 	glUseProgram(programs[PROGRAM_LIGHTFIELD]);
 	glBindVertexArray(vertexArrays[VERTEX_ARRAY_LIGHFIELD]);
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-	glViewport(200,0,lightfieldResolution, lightfieldResolution);
+	glViewport(300,0,lightfieldResolution, lightfieldResolution);
 	glUseProgram(programs[PROGRAM_PREVIEW]);
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
@@ -538,16 +544,20 @@ void on_mouse_button(GLint button, GLint state, GLint x, GLint y) {
 // on mouse motion cb
 void on_mouse_motion(GLint x, GLint y) {
 #ifdef _ANT_ENABLE
-	if(1 == TwEventMouseMotionGLUT(x,y))
-		return;
+	TwEventMouseMotionGLUT(x,y);
 #endif // _ANT_ENABLE
 
-//	static GLint sMousePreviousX = 0;
-//	static GLint sMousePreviousY = 0;
-//	const GLint MOUSE_XREL = x-sMousePreviousX;
-//	const GLint MOUSE_YREL = y-sMousePreviousY;
-//	sMousePreviousX = x;
-//	sMousePreviousY = y;
+	static GLint sMousePreviousX = 0;
+	static GLint sMousePreviousY = 0;
+	const GLint MOUSE_XREL = x-sMousePreviousX;
+	const GLint MOUSE_YREL = y-sMousePreviousY;
+	sMousePreviousX = x;
+	sMousePreviousY = y;
+
+	if(mouseLeft) {
+		phi   = fmod(phi+deltaTicks*MOUSE_XREL*400.0f, 360.0f);
+		theta = std::min(std::max(0.001f,theta-deltaTicks*MOUSE_YREL*400.0f), 90.0f);
+	}
 }
 
 
@@ -578,7 +588,7 @@ int main(int argc, char** argv) {
 
 	// build window
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
-	glutInitWindowSize(lightfieldResolution+200, lightfieldResolution*2);
+	glutInitWindowSize(lightfieldResolution+300, lightfieldResolution*2);
 	glutInitWindowPosition(0, 0);
 	glutCreateWindow("OpenGL");
 
