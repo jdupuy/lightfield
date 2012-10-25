@@ -3,21 +3,22 @@
 uniform mat4 uModelViewProjection;
 
 #ifdef _VERTEX_
-layout(location=0) in vec4 iPosition;
-layout(location=0) out vec4 oColour;
+layout(location=0) in vec3 iPosition;
+layout(location=1) in vec3 iNormal;
+layout(location=0) out vec3 oColour;
 
 void main() {
-	oColour = iPosition*0.5+0.5;
-	gl_Position = uModelViewProjection * iPosition;
+	oColour = iNormal;
+	gl_Position = uModelViewProjection * vec4(iPosition,1.0);
 }
 #endif
 
 
 #ifdef _FRAGMENT_
-layout(location=0) in vec4 iColour;
+layout(location=0) in vec3 iColour;
 layout(location=0) out vec4 oColour;
 
 void main() {
-	oColour = iColour;
+	oColour.rgb = iColour;
 }
 #endif

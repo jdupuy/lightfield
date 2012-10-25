@@ -18,11 +18,13 @@
 #include "Algebra.hpp"      // Basic algebra library
 #include "Transform.hpp"    // Basic transformations
 #include "Framework.hpp"    // utility classes/functions
+#include "glm.hpp"           // obj loader
 
 // Standard librabries
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <map>
 #include <stdexcept>
 #include <cmath>
 
@@ -89,32 +91,81 @@ GLfloat speed = 0.0f; // app speed (in ms)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+void obj_buffer_data(const std::string& filename) {
+	// Load model (sibnek's cathedral)
+	fw::DrawElementsIndirectCommand command;
+	GLMmodel *model = glmReadOBJ(filename.c_str());
+	if(model == NULL)
+		throw(std::runtime_error("failed to load OBJ model"));
+	glmUnitize(model);
+
+	// GL model
+	std::vector<GLfloat>     vertices(model->numvertices*6*2,0.0f);
+	std::vector<uint16_t>    indexes(model->numtriangles*3,0);
+	std::map<uint32_t, uint16_t>  indexMap;
+	vertices.resize(0);
+	indexes.resize(0);
+	uint16_t nextIndex = 0u;
+	// convert to GL batch ready mesh
+	for(uint16_t i = 0u; i<model->numtriangles; ++i) {
+		uint32_t vertex;
+		uint32_t normal;
+		std::map<uint32_t, uint16_t>::const_iterator it;
+
+		for(uint8_t j = 0; j < 3u; ++j) {
+			vertex = model->triangles[i].vindices[j];
+			normal = model->triangles[i].nindices[j];
+			it = indexMap.find(vertex + model->numvertices * normal);
+
+			if(it != indexMap.end()) {
+				indexes.push_back((*it).second);
+			}
+			else {
+				indexMap[vertex + model->numvertices * normal] = nextIndex;
+				indexes.push_back(nextIndex);
+
+				vertices.push_back(model->vertices[vertex*3u]);
+				vertices.push_back(model->vertices[vertex*3u+1u]);
+				vertices.push_back(model->vertices[vertex*3u+2u]);
+		
+				vertices.push_back(model->normals[normal*3u]);
+				vertices.push_back(model->normals[normal*3u+1u]);
+				vertices.push_back(model->normals[normal*3u+2u]);
+
+				++nextIndex;
+			}
+		}
+	}
+	glmDelete(model);
+
+	// set indirect drawing command
+	command.count = indexes.size();
+	command.primCount = 1;
+	command.firstIndex = 0;
+	command.baseVertex = 0;
+	command.baseInstance = 0;
+
+	glBufferData(GL_ARRAY_BUFFER,
+		         sizeof(GLfloat)*vertices.size(),
+		         &vertices[0],
+		         GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+		         sizeof(GLushort)*indexes.size(),
+		         &indexes[0],
+		         GL_STATIC_DRAW);
+	glBufferData(GL_DRAW_INDIRECT_BUFFER,
+		         sizeof(fw::DrawElementsIndirectCommand),
+		         &command,
+		         GL_STATIC_DRAW);
+
+}
+
 
 void load_mesh() {
-	// simple quad
-	const GLfloat vertices[] = { -1, 0, -1, 1,
-	                             +1, 0, -1, 1,
-	                             +1, 0, +1, 1,
-	                             -1, 0, +1, 1};
-	const GLushort indexes[] = {0,1,3,3,1,2};
-	const fw::DrawElementsIndirectCommand command 
-		= {6,1,0,0,0};
-
 	glBindBuffer(GL_ARRAY_BUFFER, buffers[BUFFER_MESH_VERTICES]);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[BUFFER_MESH_INDEXES]);
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, buffers[BUFFER_MESH_DRAW]);
-		glBufferData(GL_ARRAY_BUFFER,
-		             sizeof(vertices),
-		             vertices,
-		             GL_STATIC_DRAW);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-		             sizeof(indexes),
-		             indexes,
-		             GL_STATIC_DRAW);
-		glBufferData(GL_DRAW_INDIRECT_BUFFER,
-		             sizeof(fw::DrawElementsIndirectCommand),
-		             &command,
-		             GL_STATIC_DRAW);
+		obj_buffer_data("models/Stone_Forest_1.obj");
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
@@ -281,7 +332,9 @@ void on_init() {
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[BUFFER_MESH_INDEXES]);
 		glBindBuffer(GL_ARRAY_BUFFER, buffers[BUFFER_MESH_VERTICES]);
 		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0,4,GL_FLOAT,0,0,0);
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(0,3,GL_FLOAT,0,24,0);
+		glVertexAttribPointer(1,3,GL_FLOAT,0,24,FW_BUFFER_OFFSET(12));
 	glBindVertexArray(vertexArrays[VERTEX_ARRAY_LIGHFIELD]);
 	glBindVertexArray(0);
 
