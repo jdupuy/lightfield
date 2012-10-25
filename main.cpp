@@ -70,11 +70,11 @@ GLuint *textures     = NULL;
 GLuint *samplers     = NULL;
 GLuint *programs     = NULL;
 
-GLsizei lightfieldResolution = 256;
+GLsizei lightfieldResolution = 128;
 GLsizei viewN = 9;
-GLint layer = 12;
-GLfloat theta = 0;
-GLfloat phi   = 0;
+GLint layer = viewN*(viewN+1);
+GLfloat theta = 0.001f; // camera polar angle
+GLfloat phi   = 0; // camera azimuthal angle
 
 bool mouseLeft  = false;
 bool mouseRight = false;
