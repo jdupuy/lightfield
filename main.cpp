@@ -70,7 +70,7 @@ GLuint *textures     = NULL;
 GLuint *samplers     = NULL;
 GLuint *programs     = NULL;
 
-GLsizei lightfieldResolution = 128;
+GLsizei lightfieldResolution = 256;
 GLsizei viewN = 9;
 GLint layer = viewN*(viewN+1);
 GLfloat theta = 0.001f; // camera polar angle
