@@ -2,9 +2,8 @@
 // \author   Jonathan Dupuy
 //
 // \TODO add texcoord advection with view
-// \TODO better navigation (use mouse, set, theta and phi to read only)
-// \TODO compute optimal volume
-// \TODO store correct depth, opacity and other
+// \TODO check optimal volume (sqrt2)
+// \TODO store correct depth, opacity and relevant attributes
 // 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -50,6 +49,7 @@ enum {
 	BUFFER_MESH_VERTICES = 0,
 	BUFFER_MESH_INDEXES,
 	BUFFER_MESH_DRAW,
+	BUFFER_LIGHTFIELD_AXIS, // local frame of each view
 	BUFFER_COUNT,
 
 	// vertex arrays
@@ -190,6 +190,7 @@ void build_lighfield() {
 	GLint n = viewN;
 	GLint total = 2*n*(n+1)+1;
 	GLint current = 0;
+	std::vector<Vector4> axis(total); // alignment for std140
 
 	glGenFramebuffers(1, &framebuffer);
 	glGenRenderbuffers(1, &renderbuffer);
@@ -316,7 +317,7 @@ void on_init() {
 	                       GL_TRUE);
 	fw::build_glsl_program(programs[PROGRAM_LIGHTFIELD],
 	                       "lightfield.glsl",
-	                       "",
+	                       "#define VIEWCNT 181",
 	                       GL_TRUE);
 
 	glProgramUniform1i(programs[PROGRAM_PREVIEW],
