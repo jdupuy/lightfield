@@ -15,6 +15,9 @@ uniform sampler2DArray sView;
 uniform vec3 uViewDir;
 uniform int uViewCount;
 
+layout(std140) uniform ViewAxis {
+	mat3 uAxis[VIEWCNT]; // VIEWCNT must be defined
+}; 
 
 // vertex shader
 #ifdef _VERTEX_
@@ -58,8 +61,8 @@ ivec3 _view_number(ivec3 i, ivec3 j) {
 void find_views(vec3 cDir, out ivec3 layers, out vec3 weights) {
 	vec3 VDIR = vec3(cDir.x, max(cDir.y, 0.01), cDir.z);
 	float a = abs(VDIR.z) > abs(VDIR.x) ? VDIR.x / VDIR.z : -VDIR.z / VDIR.x;
-	float nxx = uViewCount * (1.0 - a) * acos(VDIR.y) / 3.141592657;
-	float nyy = uViewCount * (1.0 + a) * acos(VDIR.y) / 3.141592657;
+	float nxx = uViewCount * (1.0 - a) * acos(VDIR.y) / PI;
+	float nyy = uViewCount * (1.0 + a) * acos(VDIR.y) / PI;
 	int i = int(floor(nxx));
 	int j = int(floor(nyy));
 	float ti = nxx - i;
