@@ -223,9 +223,12 @@ void build_lighfield() {
 		                          renderbuffer);
 		glDrawBuffer(GL_COLOR_ATTACHMENT0);
 
+	// fw::check_framebuffer_status(); should cause error on NVidia
+	// also noticed bug on amd when using a FramebufferTexture and a 
+	// single depth renderbuffer attachment.
+
 	glViewport(0,0,lightfieldResolution,lightfieldResolution);
 
-	fw::check_framebuffer_status();
 
 	for(GLint i=-n; i<=n; ++i)
 		for(GLint j=-n+abs(i);j<=n-abs(i);++j) {
@@ -260,6 +263,7 @@ void build_lighfield() {
 		                              textures[TEXTURE_LIGHFIELD],
 		                              0,
 		                              current);
+	fw::check_framebuffer_status();
 
 			glClear(GL_DEPTH_BUFFER_BIT);
 			draw_mesh();
