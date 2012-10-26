@@ -190,7 +190,8 @@ void build_lighfield() {
 	GLint n = viewN;
 	GLint total = 2*n*(n+1)+1;
 	GLint current = 0;
-	std::vector<Vector4> axis(total); // alignment for std140
+	std::vector<Vector4> axis(total*3); // alignment for std140
+	axis.resize(0);
 
 	glGenFramebuffers(1, &framebuffer);
 	glGenRenderbuffers(1, &renderbuffer);
@@ -229,8 +230,6 @@ void build_lighfield() {
 	// single depth renderbuffer attachment.
 
 	glViewport(0,0,lightfieldResolution,lightfieldResolution);
-
-
 	for(GLint i=-n; i<=n; ++i)
 		for(GLint j=-n+abs(i);j<=n-abs(i);++j) {
 			GLfloat x = (i + j) / float(n);
@@ -238,14 +237,26 @@ void build_lighfield() {
 			GLfloat angle = (90.0f - std::max(fabs(x),fabs(y)) * 90.0f)*PI/180.0f;
 			GLfloat alpha = x == 0.0f && y == 0.0f ? 0.0f 
 				: atan2(y, x);
-			
+
 			// compute mvp
 			Matrix4x4 rotation = /*Matrix4x4::RotationAboutX(PI*0.5f)
 			                   * */Matrix4x4::RotationAboutX(-angle);
-			Matrix4x4 mvp = Matrix4x4::Ortho(-SQRT_2,SQRT_2,-SQRT_2,SQRT_2,-SQRT_2,SQRT_2)
-			              * rotation.Inverse()
+			Matrix4x4 mv  = rotation.Inverse()
 			              * Matrix4x4::RotationAboutY(-alpha);
-			
+			Matrix4x4 mvp = Matrix4x4::Ortho(-SQRT_2,SQRT_2,-SQRT_2,SQRT_2,-SQRT_2,SQRT_2)
+			              * mv;
+
+			// add local frame (transpose of rotation)
+			#if 0
+			axis.push_back(Vector4(mv[0][0],mv[0][1],mv[0][2],1));
+			axis.push_back(Vector4(mv[1][0],mv[1][1],mv[1][2],1));
+			axis.push_back(Vector4(mv[2][0],mv[2][1],mv[2][2],1));
+			#else
+			axis.push_back(Vector4(1,0,0,1));
+			axis.push_back(Vector4(0,1,0,1));
+			axis.push_back(Vector4(0,0,1,1));
+			#endif
+
 			// set uniforms
 			glProgramUniform1i(programs[PROGRAM_MESH],
 				glGetUniformLocation(programs[PROGRAM_MESH],
@@ -271,9 +282,16 @@ void build_lighfield() {
 
 			++current;
 		}
-
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+
+	// upload matrices
+	glBindBuffer(GL_UNIFORM_BUFFER, buffers[BUFFER_LIGHTFIELD_AXIS]);
+		glBufferData(GL_UNIFORM_BUFFER,
+		             sizeof(Vector4)*axis.size(),
+		             &axis[0],
+		             GL_STATIC_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 	glDeleteFramebuffers(1, &framebuffer);
 	glDeleteRenderbuffers(1, &renderbuffer);
@@ -324,6 +342,11 @@ void on_init() {
 	                       "#define VIEWCNT 181",
 	                       GL_TRUE);
 
+	glUniformBlockBinding(programs[PROGRAM_LIGHTFIELD],
+	                      glGetUniformBlockIndex(programs[PROGRAM_LIGHTFIELD],
+	                                             "ViewAxis"),
+	                      BUFFER_LIGHTFIELD_AXIS);
+
 	glProgramUniform1i(programs[PROGRAM_PREVIEW],
 		glGetUniformLocation(programs[PROGRAM_PREVIEW],
 		                     "sView"),
@@ -350,6 +373,10 @@ void on_init() {
 
 	load_mesh();
 	build_lighfield();
+
+	glBindBufferBase(GL_UNIFORM_BUFFER,
+	                 BUFFER_LIGHTFIELD_AXIS,
+	                 buffers[BUFFER_LIGHTFIELD_AXIS]);
 
 	glSamplerParameteri(samplers[SAMPLER_TRILINEAR],
                         GL_TEXTURE_MAG_FILTER,

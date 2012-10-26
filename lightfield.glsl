@@ -40,9 +40,11 @@ void main() {
 	vec3 weights;
 	find_views(uViewDir, layers, weights);
 
-	vec2 texCoord0 = iTexCoord;
-	vec2 texCoord1 = iTexCoord;
-	vec2 texCoord2 = iTexCoord;
+	// incorrect for now, texcoords must be vertex position 
+	// in world space.
+	vec2 texCoord0 = (uAxis[layers[0]] * vec3(iTexCoord,0)).xy;
+	vec2 texCoord1 = (uAxis[layers[1]] * vec3(iTexCoord,0)).xy;
+	vec2 texCoord2 = (uAxis[layers[2]] * vec3(iTexCoord,0)).xy;
 
 	vec4 t0 = texture(sView, vec3(texCoord0, layers[0]));
 	vec4 t1 = texture(sView, vec3(texCoord1, layers[1]));
