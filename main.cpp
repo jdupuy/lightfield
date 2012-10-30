@@ -1,10 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // \author   Jonathan Dupuy
 //
-// \TODO add texcoord advection with view
-// \TODO check optimal volume (sqrt2)
-// \TODO store correct depth, opacity and relevant attributes
-// 
+// \TODO second iteration
 ////////////////////////////////////////////////////////////////////////////////
 
 // gui
@@ -105,6 +102,7 @@ void obj_buffer_data(const std::string& filename) {
 	if(model == NULL)
 		throw(std::runtime_error("failed to load OBJ model"));
 	glmUnitize(model); // unit scale
+	glmScale(model, 0.5f); // really unit scale
 
 	// GL model
 	std::vector<GLfloat>     vertices(model->numvertices*6*2,0.0f);
@@ -244,7 +242,12 @@ void build_lighfield() {
 			                   * */Matrix4x4::RotationAboutX(-angle);
 			Matrix4x4 mv  = rotation.Inverse()
 			              * Matrix4x4::RotationAboutY(-alpha);
-			Matrix4x4 mvp = Matrix4x4::Ortho(-SQRT_2,SQRT_2,-SQRT_2,SQRT_2,-SQRT_2,SQRT_2)
+			Matrix4x4 mvp = Matrix4x4::Ortho(-SQRT_2*0.5f,
+			                                  SQRT_2*0.5f,
+			                                 -SQRT_2*0.5f,
+			                                  SQRT_2*0.5f,
+			                                 -SQRT_2*0.5f,
+			                                  SQRT_2*0.5f)
 			              * mv;
 
 			// add local frame (transpose of rotation)
@@ -263,6 +266,13 @@ void build_lighfield() {
 				glGetUniformLocation(programs[PROGRAM_MESH],
 				                     "uLayer"),
 				                     current);
+			glProgramUniformMatrix4fv(programs[PROGRAM_MESH],
+				glGetUniformLocation(programs[PROGRAM_MESH],
+				                     "uModelView"),
+				                     1, 
+				                     GL_FALSE,
+				                     reinterpret_cast<const GLfloat*>
+				                     (&mv));
 			glProgramUniformMatrix4fv(programs[PROGRAM_MESH],
 				glGetUniformLocation(programs[PROGRAM_MESH],
 				                     "uModelViewProjection"),
@@ -391,10 +401,10 @@ void on_init() {
 	glSamplerParameteri(samplers[SAMPLER_TRILINEAR],
 	                    GL_TEXTURE_WRAP_T,
 	                    GL_CLAMP_TO_BORDER);
-	const GLfloat borderColour[]={1,0,0,1};
-	glSamplerParameterfv(samplers[SAMPLER_TRILINEAR],
-	                     GL_TEXTURE_BORDER_COLOR,
-	                     borderColour);
+//	const GLfloat borderColour[]={1,0,0,1};
+//	glSamplerParameterfv(samplers[SAMPLER_TRILINEAR],
+//	                     GL_TEXTURE_BORDER_COLOR,
+//	                     borderColour);
 
 	glBindSampler(TEXTURE_LIGHFIELD, samplers[SAMPLER_TRILINEAR]);
 
@@ -525,13 +535,13 @@ void on_update() {
 		                      &mvp[0][0]);
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glViewport(300,lightfieldResolution,lightfieldResolution, lightfieldResolution);
+	glViewport(200,lightfieldResolution,lightfieldResolution, lightfieldResolution);
 
 	glUseProgram(programs[PROGRAM_LIGHTFIELD]);
 	glBindVertexArray(vertexArrays[VERTEX_ARRAY_LIGHFIELD]);
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-	glViewport(300,0,lightfieldResolution, lightfieldResolution);
+	glViewport(200,0,lightfieldResolution, lightfieldResolution);
 	glUseProgram(programs[PROGRAM_PREVIEW]);
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 

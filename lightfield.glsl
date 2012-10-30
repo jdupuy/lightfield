@@ -3,6 +3,9 @@
 //------------------------------------------------------------------------------
 // constants
 #define PI 3.141592657
+#define TWO_PI 6.283185307
+#define SQRT_2 1.414213562
+#define INV_SQRT_2 0.707106781
 
 
 //------------------------------------------------------------------------------
@@ -10,6 +13,8 @@
 void find_views(vec3 cDir,
                 out ivec3 layers,
                 out vec3 weights);
+
+vec3 spherical_to_cartesian(float theta, float phi);
 
 
 //------------------------------------------------------------------------------
@@ -49,17 +54,28 @@ void main() {
 	vec3 weights;
 	find_views(-uBillboardAxis[2], layers, weights);
 
-	// incorrect for now, texcoords must be vertex position 
-	// in world space.
+	// texcoords for each view
 	vec2 texCoord0 = (uAxis[layers[0]] * iTexCoord).st*0.5+0.5;
 	vec2 texCoord1 = (uAxis[layers[1]] * iTexCoord).st*0.5+0.5;
 	vec2 texCoord2 = (uAxis[layers[2]] * iTexCoord).st*0.5+0.5;
-
 	vec4 t0 = texture(sView, vec3(texCoord0, layers[0]));
 	vec4 t1 = texture(sView, vec3(texCoord1, layers[1]));
 	vec4 t2 = texture(sView, vec3(texCoord2, layers[2]));
+	vec4 t = t0*weights[0]+t1*weights[1]+t2*weights[2]; // lerp
 
-	oColour = t0*weights[0]+t1*weights[1]+t2*weights[2];
+	// second iteration
+	vec3 p = - uBillboardAxis[2]*(t.r*SQRT_2-INV_SQRT_2);
+	texCoord0 = (uAxis[layers[0]] * p).st*0.5+0.5;
+	texCoord1 = (uAxis[layers[1]] * p).st*0.5+0.5;
+	texCoord2 = (uAxis[layers[2]] * p).st*0.5+0.5;
+	t0 = texture(sView, vec3(texCoord0, layers[0]));
+	t1 = texture(sView, vec3(texCoord1, layers[1]));
+	t2 = texture(sView, vec3(texCoord2, layers[2]));
+	t = t0*weights[0]+t1*weights[1]+t2*weights[2];
+
+	// build output
+	oColour.rgb = spherical_to_cartesian(t.g*PI, t.b*TWO_PI)*t.a;
+//	oColour.rgb = t.rrr;
 }
 #endif
 
@@ -94,6 +110,15 @@ void find_views(vec3 cDir, out ivec3 layers, out vec3 weights) {
 	ii *= int(sign(VDIR.x + VDIR.z));
 	jj *= int(sign(VDIR.x + VDIR.z));
 	layers = _view_number(ii,jj);
+}
+
+
+//------------------------------------------------------------------------------
+vec3 spherical_to_cartesian(float theta, float phi) {
+	float sinTheta = sin(theta);
+	return vec3(sinTheta*cos(phi),
+	             cos(theta),
+	             sinTheta*sin(phi));
 }
 
 
