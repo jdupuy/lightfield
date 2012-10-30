@@ -122,7 +122,7 @@ void main()
         gl_Position = tangentFrameToScreen * vec4(O + A, 1.0);
         tDir = O + A - vec3(0.0, 0.0, focalPos.z);
         cDir.xyz = vec3(rotation * A.xy, A.z) / tSize.xxy - cPos;
-        cDir.w = dot(cPos + cDir.xyz, cDIR);
+        cDir.w = dot(cPos + cDir.xyz, cDIR); // what's this ?
         EmitVertex();
         gl_Position = tangentFrameToScreen * vec4(O + B, 1.0);
         tDir = O + B - vec3(0.0, 0.0, focalPos.z);

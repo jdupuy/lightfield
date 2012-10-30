@@ -20,25 +20,29 @@ vec3 spherical_to_cartesian(float theta, float phi);
 //------------------------------------------------------------------------------
 // uniforms
 uniform sampler2DArray sView;
-uniform vec3 uViewDir;
 uniform int uViewCount;
-uniform mat3 uBillboardAxis;
-uniform mat4 uModelViewProjection;
 
 layout(std140) uniform ViewAxis {
 	mat3 uAxis[VIEWCNT]; // VIEWCNT must be defined
 };
+
+uniform vec3 uCamPos;
+uniform mat3 uBillboardAxis;
+uniform mat4 uModelViewProjection;
+
 
 
 //------------------------------------------------------------------------------
 // vertex shader
 #ifdef _VERTEX_
 layout(location=0) out vec3 oTexCoord;
+layout(location=1) out vec3 oViewDir;
 
 void main() {
 	vec2 p = vec2(gl_VertexID & 1, (gl_VertexID >> 1) & 1)*2.0-1.0;
 	gl_Position = uModelViewProjection * vec4(p,0,1);
 	oTexCoord = uBillboardAxis * vec3(p,0);
+	oViewDir = normalize(uCamPos-oTexCoord);
 }
 #endif
 
@@ -47,7 +51,10 @@ void main() {
 // fragment shader
 #ifdef _FRAGMENT_
 layout(location=0) in  vec3 iTexCoord;
+layout(location=1) in  vec3 iViewDir;
 layout(location=0) out vec4 oColour;
+
+layout(depth_greater) out float gl_FragDepth;
 
 void main() {
 	ivec3 layers;
@@ -63,19 +70,25 @@ void main() {
 	vec4 t2 = texture(sView, vec3(texCoord2, layers[2]));
 	vec4 t = t0*weights[0]+t1*weights[1]+t2*weights[2]; // lerp
 
-	// second iteration
-	vec3 p = - uBillboardAxis[2]*(t.r*SQRT_2-INV_SQRT_2);
-	texCoord0 = (uAxis[layers[0]] * p).st*0.5+0.5;
-	texCoord1 = (uAxis[layers[1]] * p).st*0.5+0.5;
-	texCoord2 = (uAxis[layers[2]] * p).st*0.5+0.5;
-	t0 = texture(sView, vec3(texCoord0, layers[0]));
-	t1 = texture(sView, vec3(texCoord1, layers[1]));
-	t2 = texture(sView, vec3(texCoord2, layers[2]));
-	t = t0*weights[0]+t1*weights[1]+t2*weights[2];
+	vec4 z = 
+	// second iteration (bugged)
+//	vec3 q = iTexCoord + iViewDir*fma(t.r,SQRT_2,-INV_SQRT_2);
+//	texCoord0 = (uAxis[layers[0]] * q).st*0.5+0.5;
+//	texCoord1 = (uAxis[layers[1]] * q).st*0.5+0.5;
+//	texCoord2 = (uAxis[layers[2]] * q).st*0.5+0.5;
+//	t0 = texture(sView, vec3(texCoord0, layers[0]));
+//	t1 = texture(sView, vec3(texCoord1, layers[1]));
+//	t2 = texture(sView, vec3(texCoord2, layers[2]));
+//	t = t0*weights[0]+t1*weights[1]+t2*weights[2];
+
+	// set depth
+	gl_FragDepth = gl_FragCoord.z;
 
 	// build output
 	oColour.rgb = spherical_to_cartesian(t.g*PI, t.b*TWO_PI)*t.a;
-//	oColour.rgb = t.rrr;
+	oColour.rgb = t.rrr*t.a;
+	oColour.rgb = vec3(gl_FragDepth);
+
 }
 #endif
 

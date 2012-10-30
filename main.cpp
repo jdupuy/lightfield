@@ -2,6 +2,8 @@
 // \author   Jonathan Dupuy
 //
 // \TODO second iteration
+// \TODO full sphere instead of hemisphere only
+// 
 ////////////////////////////////////////////////////////////////////////////////
 
 // gui
@@ -350,7 +352,7 @@ void on_init() {
 	                       GL_TRUE);
 	fw::build_glsl_program(programs[PROGRAM_LIGHTFIELD],
 	                       "lightfield.glsl",
-	                       "#define VIEWCNT 181",
+	                       "#define VIEWCNT 512",
 	                       GL_TRUE);
 
 	glUniformBlockBinding(programs[PROGRAM_LIGHTFIELD],
@@ -500,27 +502,27 @@ void on_update() {
 		                     "uLayer"),
 		               layer);
 
-	float thetaR = theta * PI / 180.0f;
+	float thetaR = PI*0.5f-theta * PI / 180.0f;
 	float phiR   = phi   * PI / 180.0f;
-	float cosTheta = cos(thetaR);
-	float cosPhi   = cos(phiR);
-	float sinTheta = sin(thetaR);
-	float sinPhi   = sin(phiR);
+//	float cosTheta = cos(thetaR);
+//	float cosPhi   = cos(phiR);
+//	float sinTheta = sin(thetaR);
+//	float sinPhi   = sin(phiR);
 	Affine objectAxis;
 	objectAxis.TranslateWorld(Vector3(0,0,-radius));
 
 	Matrix4x4 mvp = Matrix4x4::Perspective(FOVY,1,0.05f,1000.0f)
 	              * objectAxis.ExtractTransformMatrix();
 
-	objectAxis.RotateAboutWorldX(PI*0.5f-thetaR);
+	objectAxis.RotateAboutWorldX(thetaR);
 	objectAxis.RotateAboutWorldY(phiR);
+
+	Vector3 camPos = objectAxis.GetUnitAxis() * objectAxis.GetPosition();
 
 	glProgramUniform3f(programs[PROGRAM_LIGHTFIELD],
 		glGetUniformLocation(programs[PROGRAM_LIGHTFIELD],
-		                     "uViewDir"),
-		               sinTheta*cosPhi,
-		               cosTheta,
-		               sinTheta*sinPhi);
+		                     "uCamPos"),
+		               camPos[0],camPos[1],camPos[2]);
 	glProgramUniformMatrix3fv(programs[PROGRAM_LIGHTFIELD],
 		glGetUniformLocation(programs[PROGRAM_LIGHTFIELD],
 		                     "uBillboardAxis"),
