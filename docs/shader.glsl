@@ -25,7 +25,7 @@
  * Authors: Eric Bruneton, Antoine Begault, Guillaume Piolat.
  */
 
-uniform vec3 cameraRefPos; // xy: ref pos in horizontal plane, z: (1+(zFar+zNear)/(zFar-zNear))/2\n
+uniform vec3 cameraRefPos; // xy: ref pos in horizontal plane, z: (1+(zFar+zNear)/(zFar-zNear))/2
 uniform vec4 clip[4];
 uniform mat4 localToTangentFrame;
 uniform mat4 tangentFrameToScreen;
@@ -42,8 +42,8 @@ uniform float pass;
 bool isVisible(vec4 c, float r) {
     return dot(c, clip[0]) > - r && dot(c, clip[1]) > - r && dot(c, clip[2]) > - r && dot(c, clip[3]) > - r;
 }
-layout(location=0) in vec3 lPos;
-layout(location=1) in vec3 lParams;
+layout(location=0) in vec3 lPos; // tree position
+layout(location=1) in vec3 lParams; //  tree params ?
 out vec3 gPos;
 out vec3 gParams;
 out float generate;
@@ -80,33 +80,45 @@ void main()
         vec3 WCP = getWorldCameraPos();
         vec3 WSD = getWorldSunDir();
         vec3 wPos = (tangentFrameToWorld * vec4(gPos[0], 1.0)).xyz; // world pos
-        float ca = gParams[0].y * 2.0 - 1.0;
+        
+        float ca = gParams[0].y * 2.0 - 1.0; // wtf ?
         float sa = sqrt(1.0 - ca * ca);
-        mat2 rotation = mat2(ca, sa, -sa, ca);
+        mat2 rotation = mat2(ca, sa, -sa, ca); // rotating for what ?
         vec3 tSize = vec3(1.0, 1.0, 0.0) * gParams[0].x * plantRadius;
+        
+        // local frame
         vec3 gDir = normalize(vec3(gPos[0].xy, 0.0));
         vec3 gLeft = vec3(-gDir.y, gDir.x, 0.0);
         vec3 gUp = vec3(0.0, 0.0, 1.0);
         gLeft *= tSize.x;
         gDir *= tSize.x;
         gUp *= tSize.y;
+        
+        // tree center
         vec3 O = gPos[0] + gUp * tSize.z / tSize.y + gUp; // TODO tree base expressed in function of tree radius or tree height, or tree half height? must be consistent with usage in brdf model
         bool below = focalPos.z < O.z + gUp.z;
+        // quad
         vec3 A = +gLeft - gDir - gUp;
         vec3 B = -gLeft - gDir - gUp;
         vec3 C = +gLeft + (below ? -gDir : gDir) + gUp;
         vec3 D = -gLeft + (below ? -gDir : gDir) + gUp;
+        
+        // compute camera pos in tree frame
         cPos = (vec3(0.0, 0.0, focalPos.z) - O) / tSize.xxy;
         cPos = vec3(rotation * cPos.xy, cPos.z);
         vec3 cDIR = normalize(cPos);
         lDIR.xyz = normalize(vec3(rotation * tangentSunDir.xy, tangentSunDir.z) / tSize.xxy);
         lDIR.w = length(vec3(rotation * tangentSunDir.xy, tangentSunDir.z) / tSize.xxy);
+        
+        // compute views for eye and sun
         ivec3 vv;
         vec3 rr;
         findViews(cDIR, vv, rr);
         findViews(lDIR.xyz, lId, lW);
         vId = vv;
         vW = rr;
+        
+        // project
         gl_Position = tangentFrameToScreen * vec4(O + A, 1.0);
         tDir = O + A - vec3(0.0, 0.0, focalPos.z);
         cDir.xyz = vec3(rotation * A.xy, A.z) / tSize.xxy - cPos;

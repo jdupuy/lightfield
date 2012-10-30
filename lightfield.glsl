@@ -1,50 +1,59 @@
 #version 420
 
+//------------------------------------------------------------------------------
 // constants
 #define PI 3.141592657
 
 
+//------------------------------------------------------------------------------
 // function decl
 void find_views(vec3 cDir,
                 out ivec3 layers,
                 out vec3 weights);
 
 
+//------------------------------------------------------------------------------
 // uniforms
 uniform sampler2DArray sView;
 uniform vec3 uViewDir;
 uniform int uViewCount;
+uniform mat3 uBillboardAxis;
+uniform mat4 uModelViewProjection;
 
 layout(std140) uniform ViewAxis {
 	mat3 uAxis[VIEWCNT]; // VIEWCNT must be defined
-}; 
+};
 
+
+//------------------------------------------------------------------------------
 // vertex shader
 #ifdef _VERTEX_
-layout(location=0) out vec2 oTexCoord;
+layout(location=0) out vec3 oTexCoord;
 
 void main() {
-	oTexCoord = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
-	gl_Position.xy = oTexCoord*2.0-1.0;
+	vec2 p = vec2(gl_VertexID & 1, (gl_VertexID >> 1) & 1);
+	gl_Position = uModelViewProjection * vec4(p*2.0-1.0,0,1);
+	oTexCoord = uBillboardAxis * vec3(p*2.0-1.0,0);
 }
 #endif
 
 
+//------------------------------------------------------------------------------
 // fragment shader
 #ifdef _FRAGMENT_
-layout(location=0) in  vec2 iTexCoord;
+layout(location=0) in  vec3 iTexCoord;
 layout(location=0) out vec4 oColour;
 
 void main() {
 	ivec3 layers;
 	vec3 weights;
-	find_views(uViewDir, layers, weights);
+	find_views(-uBillboardAxis[2], layers, weights);
 
 	// incorrect for now, texcoords must be vertex position 
 	// in world space.
-	vec2 texCoord0 = (uAxis[layers[0]] * vec3(iTexCoord,0)).xy;
-	vec2 texCoord1 = (uAxis[layers[1]] * vec3(iTexCoord,0)).xy;
-	vec2 texCoord2 = (uAxis[layers[2]] * vec3(iTexCoord,0)).xy;
+	vec2 texCoord0 = (uAxis[layers[0]] * iTexCoord).st*0.5+0.5;
+	vec2 texCoord1 = (uAxis[layers[1]] * iTexCoord).st*0.5+0.5;
+	vec2 texCoord2 = (uAxis[layers[2]] * iTexCoord).st*0.5+0.5;
 
 	vec4 t0 = texture(sView, vec3(texCoord0, layers[0]));
 	vec4 t1 = texture(sView, vec3(texCoord1, layers[1]));
@@ -55,11 +64,14 @@ void main() {
 #endif
 
 
+//------------------------------------------------------------------------------
 // function impl
 ivec3 _view_number(ivec3 i, ivec3 j) {
 	return i*((2*uViewCount+1)-abs(i))+j+(uViewCount*(uViewCount+1));
 }
 
+
+//------------------------------------------------------------------------------
 void find_views(vec3 cDir, out ivec3 layers, out vec3 weights) {
 	vec3 VDIR = vec3(cDir.x, max(cDir.y, 0.01), cDir.z);
 	float a = abs(VDIR.z) > abs(VDIR.x) ? VDIR.x / VDIR.z : -VDIR.z / VDIR.x;

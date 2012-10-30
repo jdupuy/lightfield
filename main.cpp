@@ -84,6 +84,7 @@ GLsizei viewN = 9;
 GLint layer = viewN*(viewN+1);
 GLfloat theta = 0.001f; // camera polar angle
 GLfloat phi   = 0; // camera azimuthal angle
+GLfloat radius     = 2;
 
 bool mouseLeft  = false;
 bool mouseRight = false;
@@ -247,10 +248,10 @@ void build_lighfield() {
 			              * mv;
 
 			// add local frame (transpose of rotation)
-			#if 0
-			axis.push_back(Vector4(mv[0][0],mv[0][1],mv[0][2],1));
-			axis.push_back(Vector4(mv[1][0],mv[1][1],mv[1][2],1));
-			axis.push_back(Vector4(mv[2][0],mv[2][1],mv[2][2],1));
+			#if 1
+			axis.push_back(Vector4(mv[0][0],mv[0][1],mv[0][2],0));
+			axis.push_back(Vector4(mv[1][0],mv[1][1],mv[1][2],0));
+			axis.push_back(Vector4(mv[2][0],mv[2][1],mv[2][2],0));
 			#else
 			axis.push_back(Vector4(1,0,0,1));
 			axis.push_back(Vector4(0,1,0,1));
@@ -379,11 +380,21 @@ void on_init() {
 	                 buffers[BUFFER_LIGHTFIELD_AXIS]);
 
 	glSamplerParameteri(samplers[SAMPLER_TRILINEAR],
-                        GL_TEXTURE_MAG_FILTER,
-                        GL_LINEAR);
+	                    GL_TEXTURE_MAG_FILTER,
+	                    GL_LINEAR);
 	glSamplerParameteri(samplers[SAMPLER_TRILINEAR],
-                        GL_TEXTURE_MIN_FILTER,
-                        GL_LINEAR_MIPMAP_LINEAR);
+	                    GL_TEXTURE_MIN_FILTER,
+	                    GL_LINEAR_MIPMAP_LINEAR);
+	glSamplerParameteri(samplers[SAMPLER_TRILINEAR],
+	                    GL_TEXTURE_WRAP_S,
+	                    GL_CLAMP_TO_BORDER);
+	glSamplerParameteri(samplers[SAMPLER_TRILINEAR],
+	                    GL_TEXTURE_WRAP_T,
+	                    GL_CLAMP_TO_BORDER);
+	const GLfloat borderColour[]={1,0,0,1};
+	glSamplerParameterfv(samplers[SAMPLER_TRILINEAR],
+	                     GL_TEXTURE_BORDER_COLOR,
+	                     borderColour);
 
 	glBindSampler(TEXTURE_LIGHFIELD, samplers[SAMPLER_TRILINEAR]);
 
@@ -485,6 +496,14 @@ void on_update() {
 	float cosPhi   = cos(phiR);
 	float sinTheta = sin(thetaR);
 	float sinPhi   = sin(phiR);
+	Affine objectAxis;
+	objectAxis.TranslateWorld(Vector3(0,0,-radius));
+
+	Matrix4x4 mvp = Matrix4x4::Perspective(FOVY,1,0.05f,1000.0f)
+	              * objectAxis.ExtractTransformMatrix();
+
+	objectAxis.RotateAboutWorldX(PI*0.5f-thetaR);
+	objectAxis.RotateAboutWorldY(phiR);
 
 	glProgramUniform3f(programs[PROGRAM_LIGHTFIELD],
 		glGetUniformLocation(programs[PROGRAM_LIGHTFIELD],
@@ -492,11 +511,18 @@ void on_update() {
 		               sinTheta*cosPhi,
 		               cosTheta,
 		               sinTheta*sinPhi);
-
-
-//	std::cout << sinTheta*sinPhi << ' '
-//		      << cosTheta     << ' '
-//		      << sinTheta*cosPhi << std::endl;
+	glProgramUniformMatrix3fv(programs[PROGRAM_LIGHTFIELD],
+		glGetUniformLocation(programs[PROGRAM_LIGHTFIELD],
+		                     "uBillboardAxis"),
+		                      1,
+		                      GL_FALSE,
+		                      &objectAxis.GetUnitAxis()[0][0]);
+	glProgramUniformMatrix4fv(programs[PROGRAM_LIGHTFIELD],
+		glGetUniformLocation(programs[PROGRAM_LIGHTFIELD],
+		                     "uModelViewProjection"),
+		                      1,
+		                      GL_FALSE,
+		                      &mvp[0][0]);
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glViewport(300,lightfieldResolution,lightfieldResolution, lightfieldResolution);
@@ -568,6 +594,12 @@ void on_mouse_button(GLint button, GLint state, GLint x, GLint y) {
 	else {
 		mouseLeft  &= button == GLUT_LEFT_BUTTON ? false : mouseLeft;
 		mouseRight  &= button == GLUT_RIGHT_BUTTON ? false : mouseRight;
+	}
+	if(button == 4) {
+		radius += 0.5f;
+	}
+	if(button == 3) {
+		radius = std::max(0.5f, radius-0.5f);
 	}
 }
 
