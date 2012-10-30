@@ -31,9 +31,9 @@ layout(std140) uniform ViewAxis {
 layout(location=0) out vec3 oTexCoord;
 
 void main() {
-	vec2 p = vec2(gl_VertexID & 1, (gl_VertexID >> 1) & 1);
-	gl_Position = uModelViewProjection * vec4(p*2.0-1.0,0,1);
-	oTexCoord = uBillboardAxis * vec3(p*2.0-1.0,0);
+	vec2 p = vec2(gl_VertexID & 1, (gl_VertexID >> 1) & 1)*2.0-1.0;
+	gl_Position = uModelViewProjection * vec4(p,0,1);
+	oTexCoord = uBillboardAxis * vec3(p,0);
 }
 #endif
 
